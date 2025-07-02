@@ -30,3 +30,4 @@ gdown>=4.7.1
 # 기타
 asttokens==2.2.1
 xlwings>=0.28.0
+pysqlite3-binary
