@@ -13,25 +13,26 @@ webdriver-manager>=3.8.0
 langchain-core>=0.1.0
 langchain-openai>=0.1.0
 langchain-text-splitters>=0.0.1
-langchain-community>=0.0.1 # langchain-community 패키지만 설치
+langchain-community>=0.0.1
 langgraph>=0.0.1
 langchain-teddynote>=0.0.1
 
 # ChromaDB (DuckDB 기반)
-chromadb==0.4.13  # 최신 버전 확인
-langchain-chroma>=0.0.1  # langchain-chroma 설치
+chromadb==0.4.13
+langchain-chroma>=0.0.1
 pysqlite3-binary==0.5.4
 numpy>=1.26.0
 protobuf==4.25.3
 opentelemetry-exporter-otlp==1.22.0
 
 # 웹 검색 API
-duckduckgo-search>=0.9  # duckduckgo-search ImportError 방지
+duckduckgo-search>=0.9
+
+# Excel 처리 (xlwings 대신 openpyxl 사용)
+openpyxl>=3.1.0
 
 # 다운로드 유틸리티
 gdown>=4.7.1
 
 # 기타 유틸리티
 asttokens==2.2.1
-xlwings>=0.28.0
-pysqlite3-binary  # (옵션) 로컬 개발용 SQLite. Streamlit Cloud에서는 DuckDB만 사용됨.
