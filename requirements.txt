@@ -18,7 +18,8 @@ langgraph>=0.0.1
 langchain-teddynote>=0.0.1
 
 # ChromaDB (DuckDB 기반)
-chromadb[duckdb]==0.4.14
+chromadb==0.4.13
+pysqlite3-binary==0.5.4
 numpy>=1.26.0
 protobuf==4.25.3
 opentelemetry-exporter-otlp==1.22.0
