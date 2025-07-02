@@ -549,6 +549,9 @@ workflow.add_edge("update_history", END)
 # 그래프 컴파일
 graph = workflow.compile()
 
+# ChromaDB 초기화
+vectorstore = initialize_chromadb_collection()
+
 # 메인 실행 함수
 def ask_question(question: str, chat_history: List = None) -> Dict[str, Any]:
     """질문 처리 메인 함수"""
