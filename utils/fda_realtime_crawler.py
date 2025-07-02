@@ -24,16 +24,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 
-DEFAULT_RECALL_PATH = "./data/chroma_db_recall"
-
-def load_default_vectorstore():
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-    return Chroma(
-        collection_name="chroma_recall",
-        embedding_function=embeddings,
-        persist_directory=DEFAULT_RECALL_PATH
-    )
-
 def create_recall_chunks(text, chunk_size=800, overlap_size=120):
     """리콜 Company Announcement 텍스트를 청크로 분할 (기존 코드와 동일)"""
     
@@ -642,11 +632,6 @@ def create_recall_visualizations(vectorstore) -> Dict[str, Any]:
         total_count = len(df)
         database_count = total_count - realtime_count
         
-        # 필요한 차트 생성
-        recall_reasons = extract_recall_reasons(df)
-        reason_chart = create_reason_chart(recall_reasons, df)
-        # heatmap_chart = create_recall_heatmap(df)
-        
         # 통계 요약 (실시간 데이터 정보 추가)
         stats = {
             'total_recalls': total_count,
@@ -655,14 +640,11 @@ def create_recall_visualizations(vectorstore) -> Dict[str, Any]:
             'realtime_ratio': (realtime_count / total_count * 100) if total_count > 0 else 0,
             'date_range': get_date_range(df),
             'avg_monthly': calculate_monthly_average(df),
-            'most_common_reason': recall_reasons[0]['reason'] if recall_reasons else 'N/A',
             'peak_month': get_peak_month(df),
             'latest_crawl': get_latest_crawl_time(df)
         }
         
         return {
-            'reason_chart': reason_chart,
-            # 'heatmap_chart': heatmap_chart,
             'stats': stats,
             'dataframe': df.drop(['content'], axis=1)
         }
@@ -670,90 +652,6 @@ def create_recall_visualizations(vectorstore) -> Dict[str, Any]:
     except Exception as e:
         print(f"시각화 생성 오류: {e}")
         return {}
-
-def extract_recall_reasons(df) -> List[Dict]:
-    """리콜 원인 추출 및 분류"""
-    reason_keywords = {
-        'Contamination': ['contamination', 'contaminated', 'bacteria', 'salmonella', 'listeria', 'e.coli'],
-        'Labeling Issues': ['labeling', 'label', 'mislabeled', 'undeclared', 'allergen'],
-        'Quality Issues': ['quality', 'defect', 'spoiled', 'rancid', 'foreign object'],
-        'Safety Concerns': ['safety', 'injury', 'harmful', 'toxic', 'choking'],
-        'Regulatory': ['fda', 'unauthorized', 'unapproved', 'violation', 'compliance']
-    }
-    
-    reason_counts = {}
-    
-    for _, row in df.iterrows():
-        text = (row['title'] + ' ' + row['content']).lower()
-        
-        for reason, keywords in reason_keywords.items():
-            if any(keyword in text for keyword in keywords):
-                reason_counts[reason] = reason_counts.get(reason, 0) + 1
-                break
-        else:
-            reason_counts['Other'] = reason_counts.get('Other', 0) + 1
-    
-    return [{'reason': k, 'count': v} for k, v in sorted(reason_counts.items(), key=lambda x: x[1], reverse=True)]
-
-def create_reason_chart(reasons, df=None):
-    """리콜 원인별 차트 생성 - 실시간 데이터 구분 표시"""
-    if not reasons:
-        return None
-    
-    reason_df = pd.DataFrame(reasons)
-    
-    # 실시간 데이터가 있으면 구분해서 표시
-    if df is not None and 'is_realtime' in df.columns:
-        realtime_count = len(df[df['is_realtime'] == True])
-        if realtime_count > 0:
-            title_text = f"🔍 리콜 원인별 분석 (⚡실시간: {realtime_count}건 포함)"
-        else:
-            title_text = "🔍 리콜 원인별 분석"
-    else:
-        title_text = "🔍 리콜 원인별 분석"
-    
-    fig = px.bar(
-        reason_df,
-        x='reason',
-        y='count',
-        title=title_text,
-        labels={'reason': '리콜 원인', 'count': '건수'},
-        color='count',
-        color_continuous_scale='Viridis'
-    )
-    fig.update_layout(height=400, xaxis_tickangle=-45)
-    return fig
-
-# def create_recall_heatmap(df):
-#     """리콜 발생 히트맵 (월별 x 연도별)"""
-#     try:
-#         df['datetime'] = pd.to_datetime(df['effective_date'], errors='coerce')
-#         valid_dates = df[df['datetime'].notna()].copy()
-        
-#         if valid_dates.empty:
-#             return None
-        
-#         valid_dates['year'] = valid_dates['datetime'].dt.year
-#         valid_dates['month'] = valid_dates['datetime'].dt.month
-        
-#         # 피벗 테이블 생성
-#         heatmap_data = valid_dates.groupby(['year', 'month']).size().unstack(fill_value=0)
-        
-#         if heatmap_data.empty:
-#             return None
-        
-#         fig = px.imshow(
-#             heatmap_data.T,
-#             labels=dict(x="연도", y="월", color="리콜 건수"),
-#             title="🔥 연도별/월별 리콜 발생 히트맵",
-#             color_continuous_scale='Reds'
-#         )
-#         fig.update_layout(height=400)
-#         return fig
-        
-#     except Exception as e:
-#         print(f"히트맵 생성 오류: {e}")
-#         return None
 
 def get_date_range(df):
     """날짜 범위 계산"""
@@ -800,15 +698,16 @@ def perform_realtime_update(vectorstore=None, days_back: int = 3) -> Dict[str, A
     try:
         # vectorstore가 없으면 기본 경로에서 로드
         if vectorstore is None:
-            try:
-                vectorstore = load_default_vectorstore()
-            except Exception as e:
-                return {
-                    'success': False,
-                    'error': '벡터스토어 로딩 실패',
-                    'message': str(e)
-                }
-
+            from utils.chat_recall import recall_vectorstore
+            vectorstore = recall_vectorstore
+            
+        if vectorstore is None:
+            return {
+                'success': False,
+                'error': 'vectorstore not available',
+                'message': "벡터스토어에 연결할 수 없습니다"
+            }
+        
         # 1. 실시간 크롤링 수행
         crawler = get_crawler()
         
