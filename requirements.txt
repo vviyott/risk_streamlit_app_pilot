@@ -1,3 +1,6 @@
+# Python 버전 명시 (Streamlit Cloud에서 인식)
+python_version == "3.10.*"
+
 # Streamlit & 기본 라이브러리
 streamlit>=1.28.0
 pandas>=1.5.0
@@ -17,12 +20,14 @@ langchain-community>=0.0.1
 langgraph>=0.0.1
 langchain-teddynote>=0.0.1
 
-# ChromaDB 관련
-chromadb==0.4.14
+# ChromaDB (DuckDB 기반)
+chromadb[duckdb]==0.4.14
 numpy>=1.26.0
 protobuf==4.25.3
 opentelemetry-exporter-otlp==1.22.0
-# duckdb>=0.9.1  ← 필요 시만 추가
+
+# 웹 검색 API (선택)
+duckduckgo-search>=0.9  # duckduckgo-search ImportError 방지
 
 # 다운로드 유틸리티 (선택)
 gdown>=4.7.1
@@ -30,5 +35,4 @@ gdown>=4.7.1
 # 기타
 asttokens==2.2.1
 xlwings>=0.28.0
-pysqlite3-binary
-duckduckgo-search>=0.9
+pysqlite3-binary  # 로컬 개발용 SQLite 설치 (배포 환경에서는 사용되지 않을 수 있음)
