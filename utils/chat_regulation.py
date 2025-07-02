@@ -3,7 +3,7 @@
 import json
 import os
 from functools import wraps
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from typing import TypedDict, List, Dict, Any 
 from chromadb.config import Settings
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI 
@@ -15,9 +15,16 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langgraph.graph import StateGraph, START, END
+import streamlit as st
+
+openai_api_key = st.secrets["OPENAI_API_KEY"]
+
+llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.1, api_key=openai_api_key)
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=openai_api_key)
+
 from langchain_teddynote import logging   # LangSmith 추적 활성화
 
-load_dotenv()                   # 환경변수 로드
+# load_dotenv()                   # 환경변수 로드
 logging.langsmith("LLMPROJECT") # LangSmith 추적 설정
 
 # 계층적 구조를 위한 카테고리 그룹핑
@@ -38,7 +45,7 @@ CATEGORY_HIERARCHY = {
 def translate_korean_to_english(korean_text: str) -> str:
     """한국어 텍스트를 영어로 번역"""
     try:
-        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
+        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0, api_key=openai_api_key)
         prompt = f"Translate the following Korean text to English. Only return the translation without any explanation:\n\n{korean_text}"
         response = llm.invoke([HumanMessage(content=prompt)])
         return response.content.strip()
@@ -57,7 +64,7 @@ def initialize_chromadb_collection():
                     persist_directory="./data/chroma_db"
                 )
 
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=openai_api_key)
         vectorstore = Chroma(
             client=client,
             collection_name="chroma_regulations",
@@ -463,7 +470,7 @@ def generate_answer(state: GraphState) -> GraphState:
     )
     
     try:
-        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.1)
+        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.1, api_key=openai_api_key)
         chain = prompt | llm | StrOutputParser()
         
         answer = chain.invoke({
