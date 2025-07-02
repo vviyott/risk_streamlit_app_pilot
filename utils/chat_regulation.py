@@ -5,7 +5,9 @@ import os
 from functools import wraps
 # from dotenv import load_dotenv
 from typing import TypedDict, List, Dict, Any 
+from chromadb import Client
 from chromadb.config import Settings
+from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
@@ -58,11 +60,11 @@ def initialize_chromadb_collection():
     try:
         persist_dir = "./data/chroma_db"
 
-        # DuckDB를 쓰려면 Settings에 chroma_db_impl='duckdb' 명시
-        client = Settings(
-                    chroma_db_impl="duckdb+parquet",
-                    persist_directory="./data/chroma_db"
-                )
+        # DuckDB 설정 포함한 Chroma Client 생성
+        client = Client(Settings(
+            chroma_db_impl="duckdb+parquet",
+            persist_directory=persist_dir
+        ))
 
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=openai_api_key)
         vectorstore = Chroma(
@@ -84,6 +86,7 @@ def initialize_chromadb_collection():
     except Exception as e:
         print(f"❌ DuckDB 연결 중 오류 발생: {e}")
         raise
+
 
 # 상태 정의
 class GraphState(TypedDict):
