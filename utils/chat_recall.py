@@ -120,75 +120,36 @@ def web_search_tool(query: str) -> str:
         return f"웹 검색 중 오류가 발생했습니다: {e}"
 
 def initialize_recall_vectorstore():
-    """리콜 전용 벡터스토어 초기화 - 🆕 실시간 데이터 지원"""
-    persist_dir = "./data/chroma_db_recall"
-    
-    # 기존 벡터스토어 확인
-    if os.path.exists(persist_dir) and os.listdir(persist_dir):
-        try:
-            print("기존 리콜 벡터스토어를 로드합니다...")
-            embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-            
-            vectorstore = Chroma(
-                persist_directory=persist_dir,
-                embedding_function=embeddings,
-                collection_name="FDA_recalls",
-                client_settings=Settings(chroma_db_impl="duckdb")
-            )
-            
-            collection = vectorstore._collection
-            if collection.count() > 0:
-                print(f"리콜 벡터스토어 로드 완료 ({collection.count()}개 문서)")
-                
-                # 🆕 실시간 데이터 비율 체크
-                try:
-                    all_data = vectorstore.get()
-                    metadatas = all_data.get('metadatas', [])
-                    realtime_count = sum(1 for m in metadatas if m and m.get('source') == 'realtime_crawl')
-                    total_count = len(metadatas)
-                    print(f"실시간 데이터: {realtime_count}/{total_count}건")
-                except:
-                    pass
-                
-                return vectorstore
-                
-        except Exception as e:
-            print(f"기존 리콜 벡터스토어 로드 실패: {e}")
-    
-    # 새 벡터스토어 생성
+    """압축 해제된 리콜 벡터스토어 로드 (생성 X)"""
+    persist_dir = "./data/chroma_db_recall"  # 압축 해제된 폴더명과 일치하게!
+
+    if not os.path.exists(persist_dir) or not os.listdir(persist_dir):
+        print("❗리콜 벡터스토어 폴더가 비어 있거나 존재하지 않습니다.")
+        return None
+
     try:
-        print("새 리콜 벡터스토어를 생성합니다...")
-        documents = load_recall_documents()
-        
-        if not documents:
-            raise ValueError("로드된 리콜 문서가 없습니다.")
-        
+        print("📦 압축 해제된 리콜 벡터스토어를 불러옵니다...")
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
         
-        vectorstore = Chroma.from_documents(
-            documents=documents,
-            embedding=embeddings,
-            collection_name="FDA_recalls",
+        vectorstore = Chroma(
             persist_directory=persist_dir,
+            embedding_function=embeddings,
+            collection_name="FDA_recalls",  # zip에 포함된 collection 이름과 일치해야 함
             client_settings=Settings(chroma_db_impl="duckdb")
         )
         
-        print(f"리콜 벡터스토어 생성 완료 ({len(documents)}개 문서)")
-        return vectorstore
+        collection = vectorstore._collection
+        if collection.count() > 0:
+            print(f"✅ 벡터스토어 로드 완료: {collection.count()}개 문서")
+            return vectorstore
+        else:
+            print("⚠️ 벡터스토어가 비어 있습니다.")
+            return None
         
     except Exception as e:
-        print(f"리콜 벡터스토어 초기화 오류: {e}")
-        raise
+        print(f"❌ 리콜 벡터스토어 로드 오류: {e}")
+        return None
 
-# 전역 벡터스토어 초기화
-try:
-    recall_vectorstore = initialize_recall_vectorstore()
-except Exception as e:
-    print(f"벡터스토어 초기화 실패: {e}")
-    recall_vectorstore = None
-
-# 웹 검색 도구 초기화
-web_search = DuckDuckGoSearchRun()
 
 def translation_node(state: RecallState) -> RecallState:
     """번역 노드"""
@@ -684,3 +645,6 @@ def get_vectorstore_status() -> Dict[str, Any]:
             "realtime_documents": 0,
             "error": str(e)
         }
+    
+# 앱 실행 시 자동 초기화
+recall_vectorstore = initialize_recall_vectorstore()
