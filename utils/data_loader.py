@@ -23,3 +23,11 @@ def download_and_unzip_data():
     # 압축 해제
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(extract_path)
+
+
+# 경로 확인
+recall_dir = "./data/chroma_db_recall"
+if os.path.exists(recall_dir):
+    print(f"경로가 존재합니다: {recall_dir}")
+else:
+    print(f"경로가 존재하지 않습니다: {recall_dir}")
