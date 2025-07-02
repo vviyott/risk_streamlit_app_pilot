@@ -13,12 +13,13 @@ webdriver-manager>=3.8.0
 langchain-core>=0.1.0
 langchain-openai>=0.1.0
 langchain-text-splitters>=0.0.1
-langchain-community>=0.0.1  # langchain-community 패키지만 설치
+langchain-community>=0.0.1 # langchain-community 패키지만 설치
 langgraph>=0.0.1
 langchain-teddynote>=0.0.1
 
 # ChromaDB (DuckDB 기반)
-chromadb==0.4.13
+chromadb==0.4.13  # 최신 버전 확인
+langchain-chroma>=0.0.1  # langchain-chroma 설치
 pysqlite3-binary==0.5.4
 numpy>=1.26.0
 protobuf==4.25.3
