@@ -1,5 +1,11 @@
 # utils/chat_recall.py - 실시간 데이터 연동 버전
 
+# sqlite 오류 우회용 (ChromaDB + Streamlit Cloud)
+import sys
+import pysqlite3
+
+sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+
 import json
 import os
 from typing import TypedDict, List, Dict, Any, Optional
@@ -17,11 +23,6 @@ from langchain_community.tools import DuckDuckGoSearchRun
 from langchain.tools import Tool
 from langgraph.graph import StateGraph, START, END
 from langchain_teddynote import logging # LangSmith 추적 활성화
-# sqlite 오류 우회용 (ChromaDB + Streamlit Cloud)
-import sys
-import pysqlite3
-
-sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 
 load_dotenv() # 환경 변수 로드
 logging.langsmith("LLMPROJECT") # LangSmith 추적 설정
