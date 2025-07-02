@@ -51,69 +51,32 @@ def translate_to_english(korean_text: str) -> str:
         return korean_text
 
 def load_recall_documents():
-    """FDA 리콜 데이터 로드 - JSON 구조에 맞게 수정"""
-    recall_file = "fda_recall.json"
+    """FDA 리콜 데이터 로드 - chroma_db_recall 폴더에서 데이터 로드"""
+    recall_dir = "./data/chroma_db_recall"  # 압축 해제된 리콜 데이터 폴더
     documents = []
-    
-    try:
-        with open(recall_file, "r", encoding="utf-8") as f:
-            recall_data = json.load(f)
-            
-            for item in recall_data:
-                if isinstance(item, dict) and item.get("document_type") == "recall":
-                    
-                    # chunks를 개별 문서로 처리
-                    chunks = item.get("chunks", [])
-                    for i, chunk_content in enumerate(chunks):
-                        
-                        # 빈 내용 건너뛰기
-                        if not chunk_content or len(chunk_content.strip()) < 30:
-                            continue
-                        
-                        # 구조화된 컨텐츠 생성
-                        structured_content = f"""
-제목: {item.get('title', '')}
-카테고리: {item.get('category', '')}
-등급: {item.get('class', 'Unclassified')}
-발효일: {item.get('effective_date', '')}
-최종 업데이트: {item.get('last_updated', '')}
 
-리콜 내용:
-{chunk_content}
-                        """.strip()
-                        
-                        # 메타데이터 생성 - 🆕 class 필드 추가
-                        metadata = {
-                            "document_type": item.get("document_type", ""),
-                            "category": item.get("category", ""),
-                            "class": item.get("class", "Unclassified"),  # 🆕 추가
-                            "title": item.get("title", ""),
-                            "url": item.get("url", ""),
-                            "effective_date": item.get("effective_date", ""),
-                            "last_updated": item.get("last_updated", ""),
-                            "chunk_index": str(i),
-                            "source": "fda_recall_database"  # 🆕 출처 표시
-                        }
-                        
-                        doc = Document(page_content=structured_content, metadata=metadata)
-                        documents.append(doc)
-        
-        print(f"리콜 데이터 로드 완료: {len(documents)}개 청크")
-        return documents
-        
-    except FileNotFoundError:
-        print(f"리콜 파일을 찾을 수 없습니다: {recall_file}")
-        return []
-    except Exception as e:
-        print(f"리콜 데이터 로드 오류: {e}")
-        return []
+    # 폴더 내의 모든 파일을 읽어 처리
+    for filename in os.listdir(recall_dir):
+        file_path = os.path.join(recall_dir, filename)
+
+        # JSON 파일 처리 (데이터 형식에 맞게 로딩)
+        if filename.endswith(".json"):
+            with open(file_path, 'r', encoding="utf-8") as file:
+                data = json.load(file)
+                for item in data:
+                    # 데이터의 구조에 맞게 필요한 필드를 추출하여 문서 생성
+                    structured_content = f"제목: {item.get('title', '제목 없음')}\n내용: {item.get('content', '내용 없음')}"
+                    metadata = {
+                        "title": item.get("title", ""),
+                        "category": item.get("category", ""),
+                        "date": item.get("date", ""),
+                        "source": item.get("source", "")
+                    }
+                    doc = Document(page_content=structured_content, metadata=metadata)
+                    documents.append(doc)
     
-# 웹 검색 래퍼 초기화 (더 안정적)
-search_wrapper = DuckDuckGoSearchAPIWrapper(
-    region="us-en",  # 미국 영어로 검색
-    time="y",        # 최근 1년 결과 우선
-    max_results=3    # 결과 개수 제한
-)
+    print(f"리콜 데이터 로드 완료: {len(documents)}개 문서")
+    return documents
 
 def web_search_tool(query: str) -> str:
     """안정적인 웹 검색 함수"""
@@ -155,15 +118,13 @@ def initialize_recall_vectorstore():
                     pass
                 
                 return vectorstore
-                
         except Exception as e:
             print(f"기존 리콜 벡터스토어 로드 실패: {e}")
     
     # 새 벡터스토어 생성
     try:
         print("새 리콜 벡터스토어를 생성합니다...")
-        documents = load_recall_documents()
-        
+        documents = load_recall_documents()  # 리콜 데이터 로드
         if not documents:
             raise ValueError("로드된 리콜 문서가 없습니다.")
         
