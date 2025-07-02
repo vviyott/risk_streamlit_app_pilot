@@ -197,7 +197,22 @@ def translation_node(state: RecallState) -> RecallState:
     }
 
 def recall_search_node(state: RecallState) -> RecallState:
-    """리콜 데이터베이스 검색 + 최적화된 실시간 크롤링"""
+    """리콜 데이터베이스 검색 + 조건부 실시간 크롤링"""
+    
+    # 일반 질문이면 검색 완전 생략
+    if not is_recall_related_question(state["question"]):
+        print(f"일반 질문 감지: '{state['question'][:30]}...' - 리콜 검색 생략")
+        return {
+            **state,
+            "recall_context": "",
+            "recall_documents": [],
+            "needs_web_search": False
+        }
+    
+    # 🆕 세션별 크롤링 제한 체크 (후속 질문 시 크롤링 생략)
+    chat_history = state.get("chat_history", [])
+    is_first_question = len(chat_history) == 0  # 첫 질문인지 확인
+    
     if recall_vectorstore is None:
         print("리콜 벡터스토어가 초기화되지 않았습니다.")
         return {
@@ -208,28 +223,34 @@ def recall_search_node(state: RecallState) -> RecallState:
         }
     
     try:
-        # 🆕 최적화된 실시간 크롤링 수행 (벡터스토어 전달)
-        from utils.fda_realtime_crawler import get_crawler, update_vectorstore_with_new_data
+        # 🆕 첫 질문이고 최신 데이터 요청 시에만 크롤링 수행
+        recent_keywords = ["최근", "recent", "latest", "new", "새로운", "요즘", "현재"]
+        is_recent_query = any(keyword in state["question"].lower() for keyword in recent_keywords)
         
-        print("🔍 벡터DB 기반 최적화된 실시간 수집 중...")
-        crawler = get_crawler()
+        should_crawl = is_first_question and is_recent_query
         
-        # 벡터스토어를 전달하여 중복 체크 후 크롤링
-        new_recalls = crawler.crawl_latest_recalls(days_back=15, vectorstore=recall_vectorstore)
-        
-        if new_recalls:
-            added_count = update_vectorstore_with_new_data(new_recalls, recall_vectorstore)
-            print(f"✅ 새 데이터 {len(new_recalls)}건 크롤링, {added_count}건 추가됨")
+        if should_crawl:
+            print("🔍 첫 질문 + 최신 데이터 요청 - 실시간 크롤링 수행")
+            from utils.fda_realtime_crawler import get_crawler, update_vectorstore_with_new_data
+            
+            crawler = get_crawler()
+            new_recalls = crawler.crawl_latest_recalls(days_back=2)  # 최근 2일로 단축
+            
+            if new_recalls:
+                added_count = update_vectorstore_with_new_data(new_recalls, recall_vectorstore)
+                print(f"✅ 새 데이터 {added_count}건 추가됨")
+            else:
+                print("📋 새 리콜 데이터 없음")
         else:
-            print("💡 새로운 Food & Beverages 리콜 없음")
+            print("🔄 후속 질문 또는 일반 질문 - 크롤링 생략, 기존 데이터 활용")
         
         # 기존 검색 로직 수행
-        retriever = recall_vectorstore.as_retriever(search_kwargs={"k": 8})
+        retriever = recall_vectorstore.as_retriever(search_kwargs={"k": 6})  # 개수 줄임
         
         korean_docs = retriever.invoke(state["question"])
-        english_docs = retriever.invoke(state["question_en"])
         
-        all_docs = korean_docs + english_docs
+        # 🆕 영어 번역 생략으로 속도 향상
+        all_docs = korean_docs
         unique_docs = []
         seen_content = set()
         
@@ -242,36 +263,25 @@ def recall_search_node(state: RecallState) -> RecallState:
         # 실시간 데이터 우선 정렬
         def prioritize_docs(doc):
             priority_score = 0
-            # 실시간 데이터 우선
             if doc.metadata.get("source") == "realtime_crawl":
-                priority_score += 1000
-            # 날짜 기준 우선순위
+                priority_score += 100
             try:
                 date_str = doc.metadata.get("effective_date", "1900-01-01")
                 if len(date_str) >= 10:
                     year = int(date_str[:4])
-                    month = int(date_str[5:7])
-                    priority_score += year * 100 + month
+                    priority_score += year
             except:
                 pass
             return priority_score
         
         unique_docs.sort(key=prioritize_docs, reverse=True)
-        selected_docs = unique_docs[:6]  # 문서 수 증가
+        selected_docs = unique_docs[:4]
         context = "\n\n".join([doc.page_content for doc in selected_docs])
         
-        # 실시간 데이터가 있으면 웹 검색 최소화
-        realtime_docs_selected = [doc for doc in selected_docs if doc.metadata.get("source") == "realtime_crawl"]
+        # 웹 검색 필요성 판단
+        needs_web_search = len(selected_docs) < 2 or len(context) < 200
         
-        # 컨텍스트가 충분하거나 실시간 데이터가 2개 이상이면 웹 검색 생략
-        needs_web_search = len(selected_docs) < 3 or len(context) < 300
-        if len(realtime_docs_selected) >= 2:
-            needs_web_search = False
-        elif len(realtime_docs_selected) >= 1 and len(context) > 500:
-            needs_web_search = False
-        
-        print(f"📊 검색 완료: 총 {len(selected_docs)}건 (⚡실시간: {len(realtime_docs_selected)}건, 📚기존: {len(selected_docs) - len(realtime_docs_selected)}건)")
-        print(f"🌐 웹 검색 필요: {needs_web_search}")
+        print(f"📊 검색 완료: 총 {len(selected_docs)}건")
         
         return {
             **state,
@@ -281,7 +291,7 @@ def recall_search_node(state: RecallState) -> RecallState:
         }
         
     except Exception as e:
-        print(f"❌ 자동 크롤링 + 검색 오류: {e}")
+        print(f"검색 오류: {e}")
         return {
             **state,
             "recall_context": "",
@@ -368,7 +378,7 @@ PROMPT_RECALL_ONLY = """
 1. 반드시 제공된 "FDA Recall Database Information"만 근거로 삼습니다.  
 2. **🆕 실시간 데이터(realtime_crawl)가 포함된 경우 우선 참고**하여 최신성을 강조합니다.
 3. **리콜 사례가 1건 이상**이면 표 형식으로 정리합니다.  
-   | 날짜 | 브랜드 | 제품 | 리콜 사유 | 등급 | 종료 여부 | 출처 |  
+   | 날짜 | 브랜드 | 제품 | 리콜 사유 | 종료 여부 | 출처 |  
 4. **출처 링크**가 있으면 셀에 하이퍼링크 형태로 넣습니다.  
 5. **전혀 관련 없는 결과만 있거나 검색 결과가 없는 경우에만** "현재 데이터 기준 해당 사례 확인 불가"라고 명시하세요. 조금이라도 관련된 리콜 정보가 있다면 표로 정리해주세요.
 6. 모든 표 아래에 3–5문장 규모로 **종합 요약**(기업 관점에서 위험도·예방조치·준수사항 등) 을 서술형으로 작성합니다.
@@ -416,7 +426,7 @@ PROMPT_HYBRID = """
 1. "FDA Recall Database Information"을 우선 근거로 사용하고, 부족한 정보는 "Additional Web Search Results"로 보완합니다.  
 2. **🆕 실시간 데이터가 포함된 경우 해당 정보를 최우선으로 반영**하고 표에서 구분 표시합니다.
 3. **리콜 사례가 1건 이상**이면 표 형식으로 정리합니다.  
-   | 날짜 | 브랜드 | 제품 | 리콜 사유 | 등급 | 종료 여부 | 출처 | 🆕업데이트 |  
+   | 날짜 | 브랜드 | 제품 | 리콜 사유 | 종료 여부 | 출처 | 🆕업데이트 |  
 4. **실시간 데이터는 "⚡최신" 마크**를 추가하여 구분합니다.
 5. **출처 링크**가 있으면 셀에 하이퍼링크 형태로 넣습니다.  
 6. **전혀 관련 없는 결과만 있거나 검색 결과가 없는 경우에만** "현재 데이터 기준 해당 사례 확인 불가"라고 명시하세요. 조금이라도 관련된 리콜 정보가 있다면 표로 정리해주세요.
@@ -435,10 +445,61 @@ PROMPT_HYBRID = """
 🔽 위 규칙에 따라 답변을 작성하세요:
 """
 
-def answer_generation_node(state: RecallState) -> RecallState:
-    """답변 생성 노드 - 🆕 실시간 데이터 우선 처리"""
+def is_recall_related_question(question: str) -> bool:
+    """질문이 리콜 관련인지 판단"""
+    recall_keywords = [
+        "리콜", "회수", "recall", "withdrawal", "safety alert",
+        "FDA", "식품안전", "제품 문제", "오염", "contamination",
+        "세균", "bacteria", "E.coli", "salmonella", "listeria",
+        "알레르기", "allergen", "라벨링", "labeling", "표시",
+        "부작용", "adverse", "위험", "risk", "안전성", "리콜사례"
+    ]
     
-    # 🆕 실시간 데이터 포함 여부 확인
+    question_lower = question.lower()
+    return any(keyword.lower() in question_lower for keyword in recall_keywords)
+
+# 일반 질문용 프롬프트 템플릿
+PROMPT_GENERAL_QUESTION = """
+당신은 도움이 되는 AI 어시스턴트입니다.
+사용자의 질문에 대해 정확하고 친절하게 답변해주세요.
+
+질문: {question}
+
+답변:
+"""
+
+def answer_generation_node(state: RecallState) -> RecallState:
+    """답변 생성 노드 - 질문 타입별 프롬프트 분리"""
+    
+    # 🆕 질문 타입 먼저 판단
+    is_recall_question = is_recall_related_question(state["question"])
+    
+    if not is_recall_question:
+        # 🆕 일반 질문 처리 - 리콜 프롬프트 사용 안함
+        try:
+            llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.3)
+            prompt = PromptTemplate.from_template(PROMPT_GENERAL_QUESTION)
+            chain = prompt | llm | StrOutputParser()
+            
+            answer = chain.invoke({"question": state["question"]})
+            
+            # 간단한 처리 정보 표시
+            final_answer = f"{answer}\n\n💡 일반 질문으로 처리됨 (리콜 관련 검색 생략)"
+            
+            return {
+                **state,
+                "final_answer": final_answer,
+                "search_method": "general_question"
+            }
+            
+        except Exception as e:
+            return {
+                **state,
+                "final_answer": f"일반 질문 처리 중 오류: {e}",
+                "search_method": "error"
+            }
+    
+    # 🆕 리콜 관련 질문만 기존 로직 적용
     realtime_docs = [doc for doc in state["recall_documents"] 
                     if doc.metadata.get("source") == "realtime_crawl"]
     has_realtime_data = len(realtime_docs) > 0
@@ -473,35 +534,17 @@ def answer_generation_node(state: RecallState) -> RecallState:
         
         answer = chain.invoke(prompt_vars)
         
-        # 🆕 검색 정보 추가 - 실시간 데이터 정보 포함
+        # 검색 정보 추가
         search_info = f"\n\n🔍 검색 방법: {state['search_method']}"
         
         if state["recall_documents"]:
-            # 실시간 데이터와 기존 데이터 구분
             realtime_count = len(realtime_docs)
             total_count = len(state["recall_documents"])
             
             search_info += f"\n📋 참조 문서: 총 {total_count}건"
             if realtime_count > 0:
                 search_info += f" (⚡실시간: {realtime_count}건, 📚기존: {total_count - realtime_count}건)"
-            
-            # 리콜 제목들 추출 (실시간 데이터 우선)
-            if realtime_docs:
-                realtime_titles = [doc.metadata.get("title", "")[:50] + "..." 
-                                 for doc in realtime_docs[:2] if doc.metadata.get("title")]
-                if realtime_titles:
-                    search_info += f"\n⚡ 최신 리콜: {', '.join(realtime_titles)}"
-            
-            # 기존 데이터 제목
-            existing_docs = [doc for doc in state["recall_documents"] 
-                           if doc.metadata.get("source") != "realtime_crawl"]
-            if existing_docs and not realtime_docs:  # 실시간 데이터가 없을 때만 표시
-                existing_titles = [doc.metadata.get("title", "")[:50] + "..." 
-                                 for doc in existing_docs[:2] if doc.metadata.get("title")]
-                if existing_titles:
-                    search_info += f"\n📚 기존 사례: {', '.join(existing_titles)}"
         
-        # 🆕 데이터 신선도 표시
         if has_realtime_data:
             search_info += f"\n✨ 실시간 업데이트 데이터 포함"
         
@@ -513,10 +556,9 @@ def answer_generation_node(state: RecallState) -> RecallState:
         }
         
     except Exception as e:
-        error_answer = f"답변 생성 중 오류가 발생했습니다: {e}"
         return {
             **state,
-            "final_answer": error_answer
+            "final_answer": f"리콜 답변 생성 중 오류: {e}"
         }
 
 def update_history_node(state: RecallState) -> RecallState:
