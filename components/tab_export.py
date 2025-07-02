@@ -15,6 +15,7 @@ from functools import lru_cache
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import io
+import pytz
 
 load_dotenv()
 
@@ -412,17 +413,38 @@ def show_basic_info_form():
         render_risk_summary_section()
         render_summary_display()  # 요약 표시 추가
 
+def get_korean_datetime():
+    """한국 시간대 기준 현재 날짜/시간 반환"""
+    try:
+        # 한국 시간대 설정
+        korean_tz = pytz.timezone('Asia/Seoul')
+        
+        # UTC 현재 시간을 한국 시간으로 변환
+        utc_now = datetime.utcnow()
+        utc_now = pytz.utc.localize(utc_now)
+        korean_now = utc_now.astimezone(korean_tz)
+        
+        return korean_now
+    except:
+        # pytz가 없거나 오류 시 UTC+9 수동 계산
+        utc_now = datetime.utcnow()
+        korean_now = utc_now + timedelta(hours=9)
+        return korean_now
+
 def create_excel_report():
     """openpyxl을 사용한 엑셀 리포트 생성"""
     try:
         template_path = './components/genai_rpa.xlsx'
         
+        # 한국 시간 기준으로 날짜 생성
+        korean_now = get_korean_datetime()
+        timestamp = korean_now.strftime('%Y%m%d_%H%M%S')
+        current_date = korean_now.strftime('%Y년 %m월 %d일')
+        
         # 템플릿 파일이 없는 경우 새로 생성
         if not os.path.exists(template_path):
-            return create_excel_report_from_scratch()
+            return create_excel_report_from_scratch(timestamp, current_date)
 
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        current_date = datetime.now().strftime('%Y년 %m월 %d일')
         output_filename = f"분석리포트_{timestamp}.xlsx"
 
         # 파일 복사
@@ -437,7 +459,7 @@ def create_excel_report():
         ws['E10'] = st.session_state.get("target_name", "")
         ws['E12'] = st.session_state.get("background", "")
         ws['E19'] = st.session_state.get("summary_content", "")
-        ws['J6'] = current_date
+        ws['J6'] = current_date  # 한국 시간 기준 날짜
         ws['C4'] = f"{st.session_state.get('product_name', '')} 요약 리포트"
 
         # 파일 저장
@@ -449,13 +471,17 @@ def create_excel_report():
     except Exception as e:
         return False, f"엑셀 파일 생성 중 오류: {str(e)}"
 
-def create_excel_report_from_scratch():
-    """템플릿이 없을 때 처음부터 엑셀 리포트 생성"""
+def create_excel_report_from_scratch(timestamp=None, current_date=None):
+    """템플릿이 없을 때 처음부터 엑셀 리포트 생성 - 시간대 수정"""
     try:
         from openpyxl import Workbook
         
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        current_date = datetime.now().strftime('%Y년 %m월 %d일')
+        # 한국 시간 기준으로 날짜 생성 (파라미터가 없을 경우)
+        if not timestamp or not current_date:
+            korean_now = get_korean_datetime()
+            timestamp = korean_now.strftime('%Y%m%d_%H%M%S')
+            current_date = korean_now.strftime('%Y년 %m월 %d일')
+        
         output_filename = f"분석리포트_{timestamp}.xlsx"
         
         # 새 워크북 생성
@@ -475,7 +501,7 @@ def create_excel_report_from_scratch():
         ws['A1'].font = title_font
         ws.merge_cells('A1:J1')
         
-        ws['A2'] = f"생성일: {current_date}"
+        ws['A2'] = f"생성일: {current_date}"  # 한국 시간 기준 날짜
         ws['A2'].font = normal_font
         
         # 제품 정보 섹션
