@@ -5,7 +5,7 @@ import os
 from functools import wraps
 from dotenv import load_dotenv
 from typing import TypedDict, List, Dict, Any 
-from chromadb.config import Settings, DEFAULT_TENANT, DEFAULT_DATABASE, DEFAULT_COLLECTION
+from chromadb.config import Settings
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
@@ -15,6 +15,12 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langgraph.graph import StateGraph, START, END
+try:
+    from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, DEFAULT_COLLECTION
+except ImportError as e:
+    raise ImportError("ChromaDB 라이브러리 임포트에 실패했습니다. requirements.txt에 'chromadb[duckdb]' 항목이 포함되어 있는지 확인하세요.\n\n오류 메시지: " + str(e))
+
+
 from langchain_teddynote import logging   # LangSmith 추적 활성화
 
 load_dotenv()                   # 환경변수 로드
