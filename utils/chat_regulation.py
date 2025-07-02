@@ -7,7 +7,7 @@ from functools import wraps
 from typing import TypedDict, List, Dict, Any 
 from chromadb import Client
 from chromadb.config import Settings
-from langchain_chroma import Chroma
+# from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
