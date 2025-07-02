@@ -16,3 +16,5 @@ langchain-teddynote>=0.0.1
 selenium>=4.0.0
 webdriver-manager>=3.8.0
 protobuf==4.25.3
+chromadb==0.4.24
+opentelemetry-exporter-otlp==1.22.0
