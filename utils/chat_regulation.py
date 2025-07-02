@@ -63,25 +63,28 @@ def initialize_chromadb_collection():
         persist_dir = "./data/chroma_db"
 
         # 새로운 Chroma Client 생성
-        client = Chroma(persist_directory=persist_dir)
+        client = Client(Settings(
+            persist_directory=persist_dir  # 설정을 새롭게 적용
+        ))
 
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=openai_api_key)
         vectorstore = Chroma(
             client=client,
-            collection_name="chroma_regulations",
+            collection_name="chroma_regulations",  # 컬렉션 명시적 설정
             embedding_function=embeddings,
             persist_directory=persist_dir
         )
 
-        collection = vectorstore._collection
+        # 컬렉션 확인 및 수동으로 생성
+        collection = vectorstore._collection  # 새로운 방식으로 컬렉션 확인
         document_count = collection.count()
 
         if document_count > 0:
             print(f"✅ ChromaDB 연결 완료: {document_count}개 문서")
             return vectorstore
         else:
-            print("❌ ChromaDB 컬렉션에 문서가 없습니다. 데이터를 추가해야 합니다.")
-            return None  # 데이터가 없으면 None 반환
+            print("❌ ChromaDB 컬렉션이 비어 있습니다.")
+            return vectorstore  # 또는 컬렉션을 생성하도록 수정
 
     except Exception as e:
         print(f"❌ ChromaDB 연결 중 오류 발생: {e}")
