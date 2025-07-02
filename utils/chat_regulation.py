@@ -7,7 +7,7 @@ from functools import wraps
 from typing import TypedDict, List, Dict, Any 
 from chromadb import Client
 from chromadb.config import Settings
-# from langchain_chroma import Chroma
+from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
@@ -63,7 +63,7 @@ def initialize_chromadb_collection():
         persist_dir = "./data/chroma_db"
 
         # 새로운 Chroma Client 생성
-        client = Chroma(persist_directory=persist_dir)  # 새로운 설정 방식
+        client = Chroma(persist_directory=persist_dir)
 
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=openai_api_key)
         vectorstore = Chroma(
@@ -80,7 +80,6 @@ def initialize_chromadb_collection():
             print(f"✅ ChromaDB 연결 완료: {document_count}개 문서")
             return vectorstore
         else:
-            # 데이터를 추가할 수 있는 부분 추가
             print("❌ ChromaDB 컬렉션에 문서가 없습니다. 데이터를 추가해야 합니다.")
             return None  # 데이터가 없으면 None 반환
 
