@@ -1,5 +1,9 @@
 # main.py
 
+import sys
+import pysqlite3
+sys.modules["sqlite3"] = pysqlite3
+
 import streamlit as st
 import streamlit.components.v1 as components
 from components.tab_tableau import create_market_dashboard
