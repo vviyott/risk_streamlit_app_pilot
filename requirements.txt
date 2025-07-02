@@ -13,7 +13,7 @@ webdriver-manager>=3.8.0
 langchain-core>=0.1.0
 langchain-openai>=0.1.0
 langchain-text-splitters>=0.0.1
-langchain-community>=0.0.1
+langchain-community>=0.0.1  # langchain-community 패키지만 설치
 langgraph>=0.0.1
 langchain-teddynote>=0.0.1
 
