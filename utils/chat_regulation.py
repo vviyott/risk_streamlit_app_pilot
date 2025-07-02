@@ -56,14 +56,13 @@ def translate_korean_to_english(korean_text: str) -> str:
         return korean_text
 
 def initialize_chromadb_collection():
-    """DuckDB 기반으로 ChromaDB 연결"""
+    """새로운 Chroma 클라이언트 방식으로 ChromaDB 연결"""
     try:
         persist_dir = "./data/chroma_db"
 
-        # DuckDB 설정 포함한 Chroma Client 생성
+        # 새로운 Chroma Client 생성
         client = Client(Settings(
-            chroma_db_impl="duckdb+parquet",
-            persist_directory=persist_dir
+            persist_directory=persist_dir  # 설정을 새롭게 적용
         ))
 
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=openai_api_key)
@@ -78,13 +77,13 @@ def initialize_chromadb_collection():
         document_count = collection.count()
 
         if document_count > 0:
-            print(f"✅ DuckDB 기반 ChromaDB 연결 완료: {document_count}개 문서")
+            print(f"✅ ChromaDB 연결 완료: {document_count}개 문서")
             return vectorstore
         else:
             raise ValueError("ChromaDB 컬렉션이 비어 있습니다.")
 
     except Exception as e:
-        print(f"❌ DuckDB 연결 중 오류 발생: {e}")
+        print(f"❌ ChromaDB 연결 중 오류 발생: {e}")
         raise
 
 
