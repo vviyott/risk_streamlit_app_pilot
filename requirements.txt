@@ -18,7 +18,7 @@ langgraph>=0.0.1
 langchain-teddynote>=0.0.1
 
 # ChromaDB 관련
-chromadb==0.4.24
+chromadb==0.4.14
 numpy>=1.26.0
 protobuf==4.25.3
 opentelemetry-exporter-otlp==1.22.0
