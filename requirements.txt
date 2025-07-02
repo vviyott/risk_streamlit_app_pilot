@@ -19,10 +19,10 @@ langchain-teddynote>=0.0.1
 
 # ChromaDB 관련
 chromadb==0.4.24
-numpy==1.25.2
+numpy>=1.26.0
 protobuf==4.25.3
 opentelemetry-exporter-otlp==1.22.0
 
 # 기타 필요한 패키지 (에러 방지용)
-asttokens==2.2.1  # ModuleNotFoundError 해결
+asttokens==2.2.1
 xlwings>=0.28.0
