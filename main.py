@@ -9,12 +9,10 @@ from components.tab_recall import show_recall_chat
 from components.tab_export import show_export_helper
 from utils.data_loader import download_and_unzip_data
 
-# 앱 시작 시 압축 해제 및 데이터 준비
-download_and_unzip_data()
-
-
 # 페이지 기본 설정
 st.set_page_config(page_title="Risk Killer", page_icon="🔪", layout="wide")
+# 앱 시작 시 압축 해제 및 데이터 준비
+download_and_unzip_data()
 
 # CSS 스타일
 st.markdown("""
