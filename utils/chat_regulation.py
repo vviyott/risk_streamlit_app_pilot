@@ -6,8 +6,8 @@ from functools import wraps
 from dotenv import load_dotenv
 from typing import TypedDict, List, Dict, Any 
 import chromadb
-from chromadb.config import Settings
-from langchain_community.vectorstores import Chroma
+# from chromadb.config import Settings
+# from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
