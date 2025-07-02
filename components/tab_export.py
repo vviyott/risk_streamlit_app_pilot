@@ -4,7 +4,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta 
 import json
-import xlwings as xw
 import shutil
 import pandas as pd
 import json
@@ -13,6 +12,9 @@ from langchain.schema import HumanMessage
 from dotenv import load_dotenv
 import os
 from functools import lru_cache
+from openpyxl import load_workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+import io
 
 load_dotenv()
 
@@ -411,11 +413,13 @@ def show_basic_info_form():
         render_summary_display()  # 요약 표시 추가
 
 def create_excel_report():
-    """엑셀 리포트 생성 - 최적화"""
+    """openpyxl을 사용한 엑셀 리포트 생성"""
     try:
         template_path = './components/genai_rpa.xlsx'
+        
+        # 템플릿 파일이 없는 경우 새로 생성
         if not os.path.exists(template_path):
-            return False, f"템플릿 파일을 찾을 수 없습니다: {template_path}"
+            return create_excel_report_from_scratch()
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         current_date = datetime.now().strftime('%Y년 %m월 %d일')
@@ -424,37 +428,113 @@ def create_excel_report():
         # 파일 복사
         shutil.copy(template_path, output_filename)
 
-        # 엑셀 처리 - 에러 핸들링 강화
-        app = None
-        wb = None
-        try:
-            app = xw.App(visible=False)
-            wb = app.books.open(output_filename)
-            ws = wb.sheets[0]
+        # openpyxl로 엑셀 처리
+        wb = load_workbook(output_filename)
+        ws = wb.active  # 첫 번째 워크시트 선택
+        
+        # 데이터 입력 (셀 주소는 템플릿에 맞게 조정)
+        ws['E8'] = st.session_state.get("product_name", "")
+        ws['E10'] = st.session_state.get("target_name", "")
+        ws['E12'] = st.session_state.get("background", "")
+        ws['E19'] = st.session_state.get("summary_content", "")
+        ws['J6'] = current_date
+        ws['C4'] = f"{st.session_state.get('product_name', '')} 요약 리포트"
 
-            # 데이터 입력
-            ws.range('E8').value = st.session_state.get("product_name", "")
-            ws.range('E10').value = st.session_state.get("target_name", "")
-            ws.range('E12').value = st.session_state.get("background", "")
-            ws.range('E19').value = st.session_state.get("summary_content", "")
-            ws.range('J6').value = current_date
-            ws.range('C4').value = f"{st.session_state.get('product_name', '')} 요약 리포트"
-
-            wb.save()
-            return True, output_filename
-
-        finally:
-            # 안전한 종료 처리
-            if wb:
-                wb.close()
-            if app:
-                app.quit()
+        # 파일 저장
+        wb.save(output_filename)
+        wb.close()
+        
+        return True, output_filename
 
     except Exception as e:
         return False, f"엑셀 파일 생성 중 오류: {str(e)}"
 
+def create_excel_report_from_scratch():
+    """템플릿이 없을 때 처음부터 엑셀 리포트 생성"""
+    try:
+        from openpyxl import Workbook
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        current_date = datetime.now().strftime('%Y년 %m월 %d일')
+        output_filename = f"분석리포트_{timestamp}.xlsx"
+        
+        # 새 워크북 생성
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "수출 제안서 분석 리포트"
+        
+        # 스타일 정의
+        header_font = Font(name='맑은 고딕', size=14, bold=True)
+        title_font = Font(name='맑은 고딕', size=16, bold=True)
+        normal_font = Font(name='맑은 고딕', size=10)
+        
+        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        
+        # 제목 및 헤더 설정
+        ws['A1'] = "수출 제안서 분석 리포트"
+        ws['A1'].font = title_font
+        ws.merge_cells('A1:J1')
+        
+        ws['A2'] = f"생성일: {current_date}"
+        ws['A2'].font = normal_font
+        
+        # 제품 정보 섹션
+        row = 4
+        ws[f'A{row}'] = "📦 제품 정보"
+        ws[f'A{row}'].font = header_font
+        ws[f'A{row}'].fill = header_fill
+        ws.merge_cells(f'A{row}:J{row}')
+        
+        row += 1
+        ws[f'A{row}'] = "제품명:"
+        ws[f'B{row}'] = st.session_state.get("product_name", "")
+        
+        row += 1
+        ws[f'A{row}'] = "타겟층:"
+        ws[f'B{row}'] = st.session_state.get("target_name", "")
+        
+        # 추진 배경 섹션
+        row += 2
+        ws[f'A{row}'] = "🎯 추진 배경"
+        ws[f'A{row}'].font = header_font
+        ws[f'A{row}'].fill = header_fill
+        ws.merge_cells(f'A{row}:J{row}')
+        
+        row += 1
+        background_text = st.session_state.get("background", "")
+        ws[f'A{row}'] = background_text
+        ws.merge_cells(f'A{row}:J{row+5}')  # 배경 설명을 위한 큰 셀
+        ws[f'A{row}'].alignment = Alignment(wrap_text=True, vertical='top')
+        
+        # 규제 리스크 요약 섹션
+        row += 7
+        ws[f'A{row}'] = "⚠️ 규제 리스크 요약"
+        ws[f'A{row}'].font = header_font
+        ws[f'A{row}'].fill = header_fill
+        ws.merge_cells(f'A{row}:J{row}')
+        
+        row += 1
+        summary_text = st.session_state.get("summary_content", "")
+        ws[f'A{row}'] = summary_text
+        ws.merge_cells(f'A{row}:J{row+10}')  # 요약을 위한 큰 셀
+        ws[f'A{row}'].alignment = Alignment(wrap_text=True, vertical='top')
+        
+        # 열 너비 조정
+        ws.column_dimensions['A'].width = 15
+        for col in ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']:
+            ws.column_dimensions[col].width = 12
+        
+        # 파일 저장
+        wb.save(output_filename)
+        wb.close()
+        
+        return True, output_filename
+        
+    except Exception as e:
+        return False, f"엑셀 파일 생성 중 오류: {str(e)}"
+
 def add_excel_export_button():
-    """엑셀 내보내기 버튼 - 최적화"""
+    """엑셀 내보내기 버튼 - openpyxl 버전"""
     
     # 필수 데이터 체크
     required_fields = ["product_name", "target_name", "background"]
@@ -494,6 +574,13 @@ def add_excel_export_button():
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             use_container_width=True
                         )
+                    
+                    # 임시 파일 정리
+                    try:
+                        os.remove(result)
+                    except:
+                        pass
+                        
                 except Exception as e:
                     st.error(f"다운로드 준비 중 오류: {e}")
             else:
