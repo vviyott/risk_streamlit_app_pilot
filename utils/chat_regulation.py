@@ -16,6 +16,11 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langgraph.graph import StateGraph, START, END
 from langchain_teddynote import logging   # LangSmith 추적 활성화
+# sqlite 오류 우회용 (ChromaDB + Streamlit Cloud)
+import sys
+import pysqlite3
+
+sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 
 load_dotenv()                   # 환경변수 로드
 logging.langsmith("LLMPROJECT") # LangSmith 추적 설정
