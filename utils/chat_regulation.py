@@ -55,15 +55,15 @@ def translate_korean_to_english(korean_text: str) -> str:
         print(f"번역 중 오류 발생: {e}")
         return korean_text
 
+from langchain_chroma import Chroma
+
 def initialize_chromadb_collection():
     """새로운 Chroma 클라이언트 방식으로 ChromaDB 연결"""
     try:
         persist_dir = "./data/chroma_db"
 
         # 새로운 Chroma Client 생성
-        client = Client(Settings(
-            persist_directory=persist_dir  # 설정을 새롭게 적용
-        ))
+        client = Chroma(persist_directory=persist_dir)  # 새로운 설정 방식
 
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=openai_api_key)
         vectorstore = Chroma(
@@ -80,12 +80,13 @@ def initialize_chromadb_collection():
             print(f"✅ ChromaDB 연결 완료: {document_count}개 문서")
             return vectorstore
         else:
-            raise ValueError("ChromaDB 컬렉션이 비어 있습니다.")
+            # 데이터를 추가할 수 있는 부분 추가
+            print("❌ ChromaDB 컬렉션에 문서가 없습니다. 데이터를 추가해야 합니다.")
+            return None  # 데이터가 없으면 None 반환
 
     except Exception as e:
         print(f"❌ ChromaDB 연결 중 오류 발생: {e}")
         raise
-
 
 # 상태 정의
 class GraphState(TypedDict):
