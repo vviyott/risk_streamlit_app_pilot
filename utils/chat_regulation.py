@@ -1,4 +1,4 @@
-# utils/chat_regulation.py
+# utils/chat_regulation.py (v0)
 
 import json
 import os
@@ -587,3 +587,68 @@ def ask_question(question: str, chat_history: List = None) -> Dict[str, Any]:
             "chat_history": chat_history,
             "guidance_references": []
         }
+
+# utils/chat_regulation.py 안에 추가할 로그 코드 예시
+
+# ✅ 1. vectorstore 초기화 확인용 로그
+print("[INIT] vectorstore 초기화 시도 중...")
+try:
+    collection = vectorstore._collection
+    print(f"[INIT] ✅ vectorstore 문서 수: {collection.count()}")
+except Exception as e:
+    print(f"[INIT] ❌ vectorstore 초기화 실패: {e}")
+
+
+# ✅ 2. document_retrieval_node() 함수 내 로그 추가
+async def document_retrieval_node(state):
+    print("[DOC SEARCH] 문서 검색 시작")
+    query = state["question"]
+    category = state.get("category")
+    document_type = state.get("document_type")
+
+    try:
+        docs = search_vectordb(
+            query=query,
+            category=category,
+            document_type=document_type,
+            top_k=5
+        )
+        print(f"[DOC SEARCH] 🔍 검색된 문서 수: {len(docs)}")
+
+        if not docs:
+            print("[DOC SEARCH] ⚠️ 검색 결과 없음")
+
+        context = "\n\n".join([doc.page_content for doc in docs])
+        print(f"[DOC SEARCH] 📄 context 길이: {len(context)}")
+
+        return {"documents": docs, "context": context}
+
+    except Exception as e:
+        print(f"[DOC SEARCH] ❌ 검색 중 오류: {e}")
+        return {"documents": [], "context": ""}
+
+
+# ✅ 3. generate_answer() 최종 확인용 로그
+async def generate_answer(question: str, chat_history: list = []):
+    print(f"[GENERATE] 질문 수신: {question}")
+    try:
+        app = build_graph()
+        inputs = {"question": question, "chat_history": chat_history}
+        result = await app.ainvoke(inputs)
+
+        print("[GENERATE] 🔚 LangGraph 실행 완료")
+        print(f"[GENERATE] 반환된 keys: {list(result.keys())}")
+
+        if not result.get("context"):
+            print("[GENERATE] ⚠️ context 없음 - 응답 품질 저하 가능성")
+
+        return result
+    except Exception as e:
+        print(f"[GENERATE] ❌ 오류 발생: {e}")
+        return {"answer": "답변 생성 중 오류가 발생했습니다."}
+
+
+# ✅ 선택 사항 - search_vectordb 내부에도 간단한 로그 추가 가능
+def search_vectordb(query, category=None, document_type=None, top_k=5):
+    print(f"[SEARCH] 🔍 벡터 검색 시작: query={query}, category={category}, doc_type={document_type}")
+    # 기존 검색 로직 그대로 유지
