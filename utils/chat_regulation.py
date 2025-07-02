@@ -5,9 +5,7 @@ import os
 from functools import wraps
 from dotenv import load_dotenv
 from typing import TypedDict, List, Dict, Any 
-import chromadb
-# from chromadb.config import Settings
-# from langchain_community.vectorstores import Chroma
+from chromadb.config import Settings
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
@@ -48,62 +46,37 @@ def translate_korean_to_english(korean_text: str) -> str:
         print(f"번역 중 오류 발생: {e}")
         return korean_text
 
-# ChromaDB 컬렉션 초기화
-# def initialize_chromadb_collection():
-#     """기존 ChromaDB chroma_regulations 컬렉션에 연결"""
-#     try:
-#         embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+def initialize_chromadb_collection():
+    """압축 해제된 경로에서 ChromaDB 컬렉션을 초기화"""
+    try:
+        persist_dir = "./data/chroma_db"  # 압축 해제된 위치 기준
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-#         client = chromadb.Client(Settings(
-#             is_persistent=True,
-#             persist_directory="./data/chroma_db"
-#         ))
-        
-#         # 기존 ChromaDB 컬렉션에 연결
-#         vectorstore = Chroma(
-#             client=client,
-#             collection_name="chroma_regulations",
-#             embedding_function=embeddings
-#         )
-        
-#         # 컬렉션이 존재하고 데이터가 있는지 확인
-#         collection = vectorstore._collection
-#         document_count = collection.count()
-        
-#         if document_count > 0:
-#             print(f"ChromaDB 컬렉션 'chroma_regulations' 연결 완료 ({document_count}개 문서)")
-#             return vectorstore
-#         else:
-#             raise ValueError("ChromaDB 컬렉션이 비어있습니다. 데이터를 먼저 로드해주세요.")
-            
-#     except Exception as e:
-#         print(f"ChromaDB 컬렉션 초기화 중 오류: {e}")
-#         raise
+        client = chromadb.Client(Settings(
+            is_persistent=True,
+            persist_directory=persist_dir
+        ))
 
+        vectorstore = Chroma(
+            client=client,
+            collection_name="chroma_regulations",
+            embedding_function=embeddings,
+            persist_directory=persist_dir
+        )
 
-# ChromaDB 벡터스토어 불러오기 함수
-def load_vectorstore_if_exists():
-    persist_path = "./data/chroma_db"
-    if not os.path.exists(persist_path):
-        raise FileNotFoundError("❌ ChromaDB 폴더가 존재하지 않습니다. 먼저 data.zip이 정상적으로 다운로드 및 압축 해제되었는지 확인해주세요.")
-    
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-    client = chromadb.Client(Settings(
-        is_persistent=True,
-        persist_directory=persist_path
-    ))
-    
-    vectorstore = Chroma(
-        client=client,
-        collection_name="chroma_regulations",
-        embedding_function=embeddings,
-        persist_directory=persist_path
-    )
-    
-    return vectorstore
+        # 컬렉션 유효성 검사
+        collection = vectorstore._collection
+        document_count = collection.count()
 
-# 전역 벡터스토어 초기화
-vectorstore = load_vectorstore_if_exists()
+        if document_count > 0:
+            print(f"✅ ChromaDB 컬렉션 'chroma_regulations' 연결 완료 ({document_count}개 문서)")
+            return vectorstore
+        else:
+            raise ValueError("ChromaDB 컬렉션이 비어있습니다. 데이터를 먼저 로드해주세요.")
+
+    except Exception as e:
+        print(f"❌ ChromaDB 컬렉션 초기화 중 오류: {e}")
+        raise
 
 # 상태 정의
 class GraphState(TypedDict):
