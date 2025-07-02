@@ -52,7 +52,7 @@ def translate_to_english(korean_text: str) -> str:
 
 def load_recall_documents():
     """FDA 리콜 데이터 로드 - chroma_db_recall 폴더에서 데이터 로드"""
-    recall_dir = "./data/chroma_db_recall"  # 압축 해제된 리콜 데이터 폴더
+    recall_dir = "./chroma_db_recall"  # 압축 해제된 리콜 데이터 폴더
     documents = []
 
     # 폴더 내의 모든 파일을 읽어 처리
@@ -89,7 +89,7 @@ def web_search_tool(query: str) -> str:
 
 def initialize_recall_vectorstore():
     """리콜 전용 벡터스토어 초기화 - 🆕 실시간 데이터 지원"""
-    persist_dir = "./data/chroma_db_recall"
+    persist_dir = "./chroma_db_recall"
     
     # 기존 벡터스토어 확인
     if os.path.exists(persist_dir) and os.listdir(persist_dir):
