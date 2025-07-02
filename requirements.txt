@@ -1,5 +1,5 @@
 # Python 버전 명시
-python_version == "3.10.*"
+# python_version == "3.10.*"
 
 # Streamlit & 기본 라이브러리
 streamlit>=1.28.0
