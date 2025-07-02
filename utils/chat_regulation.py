@@ -5,7 +5,7 @@ import os
 from functools import wraps
 from dotenv import load_dotenv
 from typing import TypedDict, List, Dict, Any 
-from chromadb.config import Settings
+from chromadb.config import Settings, DEFAULT_TENANT, DEFAULT_DATABASE, DEFAULT_COLLECTION
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
@@ -16,11 +16,6 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langgraph.graph import StateGraph, START, END
 from langchain_teddynote import logging   # LangSmith 추적 활성화
-# sqlite 오류 우회용 (ChromaDB + Streamlit Cloud)
-import sys
-import pysqlite3
-
-sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 
 load_dotenv()                   # 환경변수 로드
 logging.langsmith("LLMPROJECT") # LangSmith 추적 설정
@@ -52,16 +47,18 @@ def translate_korean_to_english(korean_text: str) -> str:
         return korean_text
 
 def initialize_chromadb_collection():
-    """압축 해제된 경로에서 ChromaDB 컬렉션을 초기화"""
+    """DuckDB 기반으로 ChromaDB 연결"""
     try:
-        persist_dir = "./data/chroma_db"  # 압축 해제된 위치 기준
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        persist_dir = "./data/chroma_db"
 
+        # DuckDB를 쓰려면 Settings에 chroma_db_impl='duckdb' 명시
         client = chromadb.Client(Settings(
-            is_persistent=True,
-            persist_directory=persist_dir
+            chroma_db_impl="duckdb+parquet",
+            persist_directory=persist_dir,
+            anonymized_telemetry=False
         ))
 
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
         vectorstore = Chroma(
             client=client,
             collection_name="chroma_regulations",
@@ -69,18 +66,17 @@ def initialize_chromadb_collection():
             persist_directory=persist_dir
         )
 
-        # 컬렉션 유효성 검사
         collection = vectorstore._collection
         document_count = collection.count()
 
         if document_count > 0:
-            print(f"✅ ChromaDB 컬렉션 'chroma_regulations' 연결 완료 ({document_count}개 문서)")
+            print(f"✅ DuckDB 기반 ChromaDB 연결 완료: {document_count}개 문서")
             return vectorstore
         else:
-            raise ValueError("ChromaDB 컬렉션이 비어있습니다. 데이터를 먼저 로드해주세요.")
+            raise ValueError("ChromaDB 컬렉션이 비어 있습니다.")
 
     except Exception as e:
-        print(f"❌ ChromaDB 컬렉션 초기화 중 오류: {e}")
+        print(f"❌ DuckDB 연결 중 오류 발생: {e}")
         raise
 
 # 상태 정의
