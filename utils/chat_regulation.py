@@ -1,13 +1,11 @@
-# utils/chat_regulation.py
+# utils/chat_regulation.py (v0)
 
 import json
 import os
 from functools import wraps
 # from dotenv import load_dotenv
 from typing import TypedDict, List, Dict, Any 
-from chromadb import Client
 from chromadb.config import Settings
-from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
@@ -55,39 +53,36 @@ def translate_korean_to_english(korean_text: str) -> str:
         print(f"번역 중 오류 발생: {e}")
         return korean_text
 
-from langchain_chroma import Chroma
-
 def initialize_chromadb_collection():
-    """새로운 Chroma 클라이언트 방식으로 ChromaDB 연결"""
+    """DuckDB 기반으로 ChromaDB 연결"""
     try:
         persist_dir = "./data/chroma_db"
 
-        # 새로운 Chroma Client 생성
-        client = Client(Settings(
-            persist_directory=persist_dir  # 설정을 새롭게 적용
-        ))
+        # DuckDB를 쓰려면 Settings에 chroma_db_impl='duckdb' 명시
+        client = Settings(
+                    chroma_db_impl="duckdb+parquet",
+                    persist_directory="./data/chroma_db"
+                )
 
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=openai_api_key)
         vectorstore = Chroma(
             client=client,
-            collection_name="chroma_regulations",  # 컬렉션 명시적 설정
+            collection_name="chroma_regulations",
             embedding_function=embeddings,
             persist_directory=persist_dir
         )
 
-        # 컬렉션 확인 및 수동으로 생성
-        collection = vectorstore._collection  # 새로운 방식으로 컬렉션 확인
+        collection = vectorstore._collection
         document_count = collection.count()
 
         if document_count > 0:
-            print(f"✅ ChromaDB 연결 완료: {document_count}개 문서")
+            print(f"✅ DuckDB 기반 ChromaDB 연결 완료: {document_count}개 문서")
             return vectorstore
         else:
-            print("❌ ChromaDB 컬렉션이 비어 있습니다.")
-            return vectorstore  # 또는 컬렉션을 생성하도록 수정
+            raise ValueError("ChromaDB 컬렉션이 비어 있습니다.")
 
     except Exception as e:
-        print(f"❌ ChromaDB 연결 중 오류 발생: {e}")
+        print(f"❌ DuckDB 연결 중 오류 발생: {e}")
         raise
 
 # 상태 정의
@@ -554,9 +549,6 @@ workflow.add_edge("update_history", END)
 # 그래프 컴파일
 graph = workflow.compile()
 
-# ChromaDB 초기화
-vectorstore = initialize_chromadb_collection()
-
 # 메인 실행 함수
 def ask_question(question: str, chat_history: List = None) -> Dict[str, Any]:
     """질문 처리 메인 함수"""
@@ -595,68 +587,3 @@ def ask_question(question: str, chat_history: List = None) -> Dict[str, Any]:
             "chat_history": chat_history,
             "guidance_references": []
         }
-
-# utils/chat_regulation.py 안에 추가할 로그 코드 예시
-
-# ✅ 1. vectorstore 초기화 확인용 로그
-print("[INIT] vectorstore 초기화 시도 중...")
-try:
-    collection = vectorstore._collection
-    print(f"[INIT] ✅ vectorstore 문서 수: {collection.count()}")
-except Exception as e:
-    print(f"[INIT] ❌ vectorstore 초기화 실패: {e}")
-
-
-# ✅ 2. document_retrieval_node() 함수 내 로그 추가
-async def document_retrieval_node(state):
-    print("[DOC SEARCH] 문서 검색 시작")
-    query = state["question"]
-    category = state.get("category")
-    document_type = state.get("document_type")
-
-    try:
-        docs = search_vectordb(
-            query=query,
-            category=category,
-            document_type=document_type,
-            top_k=5
-        )
-        print(f"[DOC SEARCH] 🔍 검색된 문서 수: {len(docs)}")
-
-        if not docs:
-            print("[DOC SEARCH] ⚠️ 검색 결과 없음")
-
-        context = "\n\n".join([doc.page_content for doc in docs])
-        print(f"[DOC SEARCH] 📄 context 길이: {len(context)}")
-
-        return {"documents": docs, "context": context}
-
-    except Exception as e:
-        print(f"[DOC SEARCH] ❌ 검색 중 오류: {e}")
-        return {"documents": [], "context": ""}
-
-
-# ✅ 3. generate_answer() 최종 확인용 로그
-async def generate_answer(question: str, chat_history: list = []):
-    print(f"[GENERATE] 질문 수신: {question}")
-    try:
-        app = build_graph()
-        inputs = {"question": question, "chat_history": chat_history}
-        result = await app.ainvoke(inputs)
-
-        print("[GENERATE] 🔚 LangGraph 실행 완료")
-        print(f"[GENERATE] 반환된 keys: {list(result.keys())}")
-
-        if not result.get("context"):
-            print("[GENERATE] ⚠️ context 없음 - 응답 품질 저하 가능성")
-
-        return result
-    except Exception as e:
-        print(f"[GENERATE] ❌ 오류 발생: {e}")
-        return {"answer": "답변 생성 중 오류가 발생했습니다."}
-
-
-# ✅ 선택 사항 - search_vectordb 내부에도 간단한 로그 추가 가능
-def search_vectordb(query, category=None, document_type=None, top_k=5):
-    print(f"[SEARCH] 🔍 벡터 검색 시작: query={query}, category={category}, doc_type={document_type}")
-    # 기존 검색 로직 그대로 유지
