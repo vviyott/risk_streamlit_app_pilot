@@ -13,7 +13,7 @@ def download_and_unzip_data():
     if os.path.exists(os.path.join(extract_path, "chroma_db")):
         return  # 이미 압축 해제되어 있으면 종료
 
-    # 폴더 먼저 생성!
+    # 폴더 생성
     os.makedirs("./data", exist_ok=True)
 
     # gdown 다운로드
