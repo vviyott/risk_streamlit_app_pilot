@@ -276,7 +276,13 @@ def recall_search_node(state: RecallState) -> RecallState:
         
         unique_docs.sort(key=prioritize_docs, reverse=True)
         selected_docs = unique_docs[:4]
-        context = "\n\n".join([doc.page_content for doc in selected_docs])
+        context_parts = []
+        for doc in selected_docs:
+            # 내용과 함께 URL 정보를 명시적으로 추가
+            content_with_meta = f"{doc.page_content}\nSource URL: {doc.metadata.get('url', 'N/A')}"
+            context_parts.append(content_with_meta)
+
+        context = "\n\n---\n\n".join(context_parts)
         
         # 웹 검색 필요성 판단
         needs_web_search = len(selected_docs) < 2 or len(context) < 200
