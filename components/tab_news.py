@@ -205,7 +205,7 @@ def show_news():
         st.caption("출처: [식품음료신문](https://www.thinkfood.co.kr/)")
 
     with col2:
-        st.markdown("**📊 미국 식품 산업 동향 요약 분석 (AI)**")
+        st.markdown("**📊 미국 식품 산업 동향 요약 분석 (by OpenAI)**")
         with st.spinner("기사 내용을 바탕으로 식품 산업 동향 분석 중..."):
 
             # 요약용 기사 수집
