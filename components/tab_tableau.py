@@ -4,7 +4,6 @@ import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
 
-## tableau
 def create_market_dashboard():
     """미국 시장 진출 대시보드 UI 생성"""
     # 설명 문구 추가
@@ -13,12 +12,10 @@ def create_market_dashboard():
     주별 식품 지출과 연도별 카테고리/리콜원인을 지도맵, 파이차트, 히트맵을 제공하고 필요한 정보는 pdf 또는 ppt 자료로 다운로드 가능합니다.
     """)
     
-    # 2행: 두 개의 태블로 시각화 (미국 주별 식품 지출 시각화와 연도별 미국 식품 지출 추이)
     viz_col1, viz_col2, viz_col3= st.columns(3)
     
-    with viz_col1:
-        # 첫 번째 태블로 시각화: 미국 주별 식품 지출 시각화
-        st.markdown("<h4 style='text-align: center;'>미국 주별 식품 지출 시각화</h4>", unsafe_allow_html=True)
+    with viz_col1: # 첫 번째 태블로 시각화: 미국 주별 식품 지출 시각화
+        st.markdown("<h5 style='text-align: left;'># 미국 주별 식품 지출 시각화</h5>", unsafe_allow_html=True)
         
         components.html(
             """
@@ -68,12 +65,11 @@ def create_market_dashboard():
             scrolling=False
         )
         
-        #맨 아래 설명 적기
         st.caption("출처: [Statista Food](https://www.statista.com/outlook/cmo/food/united-states)")
+   
     
-    
-    with viz_col2:
-        st.markdown("<h4 style='text-align:center;'>연도/카테고리별 미국 식품 지출 추이</h4>",
+    with viz_col2: # 두 번째 태블로 시각화: 
+        st.markdown("<h5 style='text-align:left;'># 연도/카테고리별 미국 식품 지출 추이</h5>",
                     unsafe_allow_html=True)
 
         components.html(
@@ -108,9 +104,8 @@ def create_market_dashboard():
         
         st.caption("출처: [USDA](https://www.ers.usda.gov/data-products/us-food-imports)")
 
-    with viz_col3:
-            # 세 번째 태블로 시각화: 연도별 리콜건수 변화 히트맵
-            st.markdown("<h4 style='text-align:center;'>연도/리콜원인별 발생 건수 히트맵</h4>",
+    with viz_col3: # 세 번째 태블로 시각화: 연도별 리콜건수 변화 히트맵
+            st.markdown("<h5 style='text-align:left;'># 연도/리콜원인별 발생 건수 히트맵</h5>",
                         unsafe_allow_html=True)
 
             components.html(
