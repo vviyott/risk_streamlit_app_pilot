@@ -177,8 +177,8 @@ def summarize_with_openai(content, openai_api_key):
 
 def show_news():
     st.info("""
-    세계 식품 산업 흐름을 빠르게 파악하세요.\n
-    최근 뉴스기사와 함께, AI가 미국 시장의 주요 이슈를 분석해 인사이트로 제공합니다.
+    최신 뉴스 기사를 통해 세계 식품 시장의 흐름을 파악할 수 있습니다.\n
+    AI가 분석한 미국의 주요 이슈 관련 인사이트를 함께 확인할 수 있습니다.
     """)
     openai_api_key = os.getenv('OPENAI_API_KEY')
 
