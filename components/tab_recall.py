@@ -222,7 +222,7 @@ def render_chat_area(session_keys, is_processing):
 def show_recall_chat():
     """리콜 전용 챗봇 - 자동 시각화 + 동향 분석 버전"""
     st.info("""
-    🤖 **자동 실시간 리콜 분석 시스템** 
+    🔎 **자동 실시간 리콜 분석 시스템** 
     - 질문 시 자동으로 최신 리콜 데이터 수집
     - 실시간 데이터 + 기존 DB 통합 분석
     - 자동 시각화 및 동향 분석 제공
