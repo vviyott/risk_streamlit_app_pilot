@@ -7,9 +7,6 @@ import re
 import os
 from dotenv import load_dotenv
 
-# .env 파일에서 환경변수 로드
-load_dotenv()
-
 def fetch_articles_with_keyword(keyword=None, max_pages=5, max_articles=3):
     base_url = "https://www.thinkfood.co.kr/news/articleList.html?sc_section_code=S1N2&view_type=sm"
     results = []
