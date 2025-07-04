@@ -614,13 +614,13 @@ def add_excel_export_button():
 
 # 기타 함수들은 기존 코드 유지하되 필요시 최적화
 def show_product_analysis():
-    """제품 분석 섹션 - 기존 코드 유지"""
+    """제품 분석 섹션"""
     pass
 
 def show_report_generation():
-    """제안서 생성 섹션 - 기존 코드 유지"""
+    """제안서 생성 섹션"""
     pass
 
 def show_results_section():
-    """결과 표시 섹션 - 기존 코드 유지"""
+    """결과 표시 섹션"""
     pass
