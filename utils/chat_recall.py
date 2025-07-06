@@ -89,6 +89,8 @@ def load_recall_documents():
         print(f"리콜 데이터 로드 오류: {e}")
         return []
 
+# 문제가 되는 부분 (120-130번째 줄 근처) 수정된 코드
+
 def initialize_recall_vectorstore():
     """이 코드는 리콜 전용 벡터스토어를 초기화하거나 기존 데이터를 로드합니다"""
     persist_dir = "./data/chroma_db_recall"
@@ -119,7 +121,8 @@ def initialize_recall_vectorstore():
         documents = load_recall_documents()
         
         if not documents:
-            # raise ValueError("로드된 리콜 문서가 없습니다.")
+            print("로드된 리콜 문서가 없습니다.")  # 주석 처리된 raise 문을 print로 변경
+            return None  # None 반환 추가
         
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=openai_api_key)
         
@@ -134,14 +137,14 @@ def initialize_recall_vectorstore():
         return vectorstore
         
     except Exception as e:
-        # print(f"리콜 벡터스토어 초기화 오류: {e}")
-        raise
+        print(f"리콜 벡터스토어 초기화 오류: {e}")  # 주석 처리된 print 문 활성화
+        return None  # raise 대신 None 반환
 
 # 전역 벡터스토어 초기화
 try:
     recall_vectorstore = initialize_recall_vectorstore()
 except Exception as e:
-    # print(f"벡터스토어 초기화 실패: {e}")
+    print(f"벡터스토어 초기화 실패: {e}")  # 주석 처리된 print 문 활성화
     recall_vectorstore = None
 
 def translation_node(state: RecallState) -> RecallState:
