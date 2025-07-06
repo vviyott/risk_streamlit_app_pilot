@@ -19,5 +19,6 @@ risk_streamlit_app/
 │   └── c.py
 └── requirements.txt
 └── runtime.txt
+└── packages.txt
 └── 가이드.png
 ```
