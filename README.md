@@ -7,15 +7,15 @@ risk_streamlit_app/
 │   ├── tab_news.py
 │   ├── tab_regulation.py
 │   ├── tab_recall.py
-│   └── tab_export.py
+│   ├── tab_export.py
 │   └── genai_rpa.xlsx
 ├── utils/
-│   └── data_loader.py
-│   └── chat_common_functions.py
-│   └── chat_regulation.py
-│   └── chat_recall.py
-│   └── fda_realtime_crawler.py
-│   └── google_crawler.py
+│   ├── data_loader.py
+│   ├── chat_common_functions.py
+│   ├── chat_regulation.py
+│   ├── chat_recall.py
+│   ├── fda_realtime_crawler.py
+│   ├── google_crawler.py
 │   └── c.py
 └── requirements.txt
 └── runtime.txt
