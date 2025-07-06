@@ -11,9 +11,9 @@ from bs4 import BeautifulSoup
 import openai
 from datetime import timedelta
 import os
-from dotenv import load_dotenv
+import streamlit as st
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai_api_key = st.secrets["OPENAI_API_KEY"]
 
 # 로깅 설정
 logging.basicConfig(
