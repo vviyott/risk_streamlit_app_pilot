@@ -23,7 +23,6 @@ embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=openai_api
 
 from langchain_teddynote import logging   # LangSmith 추적 활성화
 
-# load_dotenv()                   # 환경변수 로드
 logging.langsmith("LLMPROJECT") # LangSmith 추적 설정
 
 # 계층적 구조를 위한 카테고리 그룹핑
