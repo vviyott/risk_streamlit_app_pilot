@@ -4,8 +4,8 @@ import json
 import os
 from datetime import datetime, timedelta
 from typing import TypedDict, List, Dict, Any
+from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-import streamlit as st
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
@@ -16,7 +16,7 @@ from langchain_teddynote import logging
 from utils.fda_realtime_crawler import get_crawler, update_vectorstore_with_new_data,get_latest_date_from_vectorstore
 from utils.google_crawler import search_and_extract_news, format_news_for_context
 
-openai_api_key = st.secrets["OPENAI_API_KEY"]
+load_dotenv()
 logging.langsmith("LLMPROJECT")
 
 class RecallState(TypedDict):
@@ -89,8 +89,6 @@ def load_recall_documents():
         print(f"리콜 데이터 로드 오류: {e}")
         return []
 
-# 문제가 되는 부분 (120-130번째 줄 근처) 수정된 코드
-
 def initialize_recall_vectorstore():
     """이 코드는 리콜 전용 벡터스토어를 초기화하거나 기존 데이터를 로드합니다"""
     persist_dir = "./data/chroma_db_recall"
@@ -99,7 +97,7 @@ def initialize_recall_vectorstore():
     if os.path.exists(persist_dir) and os.listdir(persist_dir):
         try:
             print("기존 리콜 벡터스토어를 로드합니다...")
-            embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=openai_api_key)
+            embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
             
             vectorstore = Chroma(
                 persist_directory=persist_dir,
@@ -121,10 +119,9 @@ def initialize_recall_vectorstore():
         documents = load_recall_documents()
         
         if not documents:
-            print("로드된 리콜 문서가 없습니다.")  # 주석 처리된 raise 문을 print로 변경
-            return None  # None 반환 추가
+            raise ValueError("로드된 리콜 문서가 없습니다.")
         
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=openai_api_key)
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
         
         vectorstore = Chroma.from_documents(
             documents=documents,
@@ -137,14 +134,14 @@ def initialize_recall_vectorstore():
         return vectorstore
         
     except Exception as e:
-        print(f"리콜 벡터스토어 초기화 오류: {e}")  # 주석 처리된 print 문 활성화
-        return None  # raise 대신 None 반환
+        print(f"리콜 벡터스토어 초기화 오류: {e}")
+        raise
 
 # 전역 벡터스토어 초기화
 try:
     recall_vectorstore = initialize_recall_vectorstore()
 except Exception as e:
-    print(f"벡터스토어 초기화 실패: {e}")  # 주석 처리된 print 문 활성화
+    print(f"벡터스토어 초기화 실패: {e}")
     recall_vectorstore = None
 
 def translation_node(state: RecallState) -> RecallState:
@@ -172,25 +169,25 @@ def translation_node(state: RecallState) -> RecallState:
 def translate_with_proper_nouns(korean_text: str) -> str:
     """고유명사를 보존하면서 번역하는 개선된 함수"""
     try:
-        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.1, openai_api_key=openai_api_key)
+        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.1)
         
         # 🆕 고유명사 보존 프롬프트
         prompt = f"""
-            다음 한국어 텍스트를 영어로 번역하되, 제품명과 브랜드명은 원형을 유지하세요.
-            
-            번역 규칙:
-            1. 제품명/브랜드명은 한국어 원형 유지 (예: 불닭볶음면 → Buldak)
-            2. 일반적인 식품 카테고리만 영어로 번역 (예: 라면 → ramen, 과자 → snack)
-            3. "리콜", "사례" 등은 영어로 번역
-            4. 번역문만 반환하고 설명 없이
-            
-            예시:
-            - "불닭볶음면의 리콜 사례" → "Buldak ramen recall case"
-            - "오리온 초코파이 리콜" → "Orion Choco Pie recall"
-            
-            한국어 텍스트: {korean_text}
-            
-            영어 번역:"""
+다음 한국어 텍스트를 영어로 번역하되, 제품명과 브랜드명은 원형을 유지하세요.
+
+번역 규칙:
+1. 제품명/브랜드명은 한국어 원형 유지 (예: 불닭볶음면 → Buldak)
+2. 일반적인 식품 카테고리만 영어로 번역 (예: 라면 → ramen, 과자 → snack)
+3. "리콜", "사례" 등은 영어로 번역
+4. 번역문만 반환하고 설명 없이
+
+예시:
+- "불닭볶음면의 리콜 사례" → "Buldak ramen recall case"
+- "오리온 초코파이 리콜" → "Orion Choco Pie recall"
+
+한국어 텍스트: {korean_text}
+
+영어 번역:"""
 
         response = llm.invoke([HumanMessage(content=prompt)])
         translated = response.content.strip()
@@ -212,26 +209,26 @@ def translate_with_proper_nouns(korean_text: str) -> str:
 def extract_search_keywords(question: str) -> str:
     """이 코드는 질문에서 뉴스 검색용 핵심 키워드를 추출합니다"""
     try:
-        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.1, openai_api_key=openai_api_key)
+        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.1)
         
         prompt = f"""
-            다음 질문에서 뉴스 검색에 적합한 핵심 키워드만 추출하세요.
-            
-            규칙:
-            1. 제품명, 브랜드명, 식품명, 회사명만 추출
-            2. "회수", "사례", "있나요", "어떤", "최근", "언제" 같은 불필요한 단어 제거
-            3. 영어 브랜드명은 원형 유지 (예: McDonald's, KFC)
-            4. 최대 3개 키워드로 제한
-            5. 키워드 마지막에 "리콜" 단어 항상 추가
-            5. 키워드만 공백으로 구분해서 반환 (설명이나 부가설명 없이)
-            
-            예시:
-            - "맥도날드 햄버거 리콜 사례가 있나요?" → "맥도날드 햄버거 리콜"
-            - "오리온 초코파이 최근 리콜 어떤 게 있어?" → "오리온 초코파이 리콜"
-            - "만두 리콜 사례" → "만두 리콜"
-            
-            질문: {question}
-            키워드:"""
+다음 질문에서 뉴스 검색에 적합한 핵심 키워드만 추출하세요.
+
+규칙:
+1. 제품명, 브랜드명, 식품명, 회사명만 추출
+2. "회수", "사례", "있나요", "어떤", "최근", "언제" 같은 불필요한 단어 제거
+3. 영어 브랜드명은 원형 유지 (예: McDonald's, KFC)
+4. 최대 3개 키워드로 제한
+5. 키워드 마지막에 "리콜" 단어 항상 추가
+5. 키워드만 공백으로 구분해서 반환 (설명이나 부가설명 없이)
+
+예시:
+- "맥도날드 햄버거 리콜 사례가 있나요?" → "맥도날드 햄버거 리콜"
+- "오리온 초코파이 최근 리콜 어떤 게 있어?" → "오리온 초코파이 리콜"
+- "만두 리콜 사례" → "만두 리콜"
+
+질문: {question}
+키워드:"""
 
         response = llm.invoke([HumanMessage(content=prompt)])
         keywords = response.content.strip()
@@ -580,27 +577,27 @@ def check_document_relevance(question: str, documents: List[Document]) -> List[D
             
             # 🆕 개선된 관련성 판단 프롬프트
             relevance_prompt = f"""
-                다음 질문과 FDA 리콜 문서의 관련성을 엄격히 판단하세요.
-                
-                질문: {question}
-                핵심 키워드: {question_keywords}
-                
-                FDA 리콜 문서:
-                제목: {title}
-                내용: {content_preview}
-                
-                엄격한 판단 기준:
-                1. 핵심 키워드가 제목이나 내용에 직접적으로 포함되어 있는가?
-                2. 동일한 제품명/브랜드명이 언급되는가?
-                3. 같은 식품 카테고리 내에서도 구체적으로 일치하는가?
-                
-                예시:
-                - 질문 "만두 리콜" vs 문서 "dumpling recall" → 관련
-                - 질문 "만두 리콜" vs 문서 "pasta recall" → 무관
-                - 질문 "삼양 라면" vs 문서 "농심 라면" → 무관
-                
-                답변: "관련" 또는 "무관" 중 하나만 반환하세요.
-                """
+다음 질문과 FDA 리콜 문서의 관련성을 엄격히 판단하세요.
+
+질문: {question}
+핵심 키워드: {question_keywords}
+
+FDA 리콜 문서:
+제목: {title}
+내용: {content_preview}
+
+엄격한 판단 기준:
+1. 핵심 키워드가 제목이나 내용에 직접적으로 포함되어 있는가?
+2. 동일한 제품명/브랜드명이 언급되는가?
+3. 같은 식품 카테고리 내에서도 구체적으로 일치하는가?
+
+예시:
+- 질문 "만두 리콜" vs 문서 "dumpling recall" → 관련
+- 질문 "만두 리콜" vs 문서 "pasta recall" → 무관
+- 질문 "삼양 라면" vs 문서 "농심 라면" → 무관
+
+답변: "관련" 또는 "무관" 중 하나만 반환하세요.
+"""
             
             response = llm.invoke([HumanMessage(content=relevance_prompt)])
             relevance = response.content.strip().lower()
