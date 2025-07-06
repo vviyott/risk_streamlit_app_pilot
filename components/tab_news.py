@@ -177,7 +177,7 @@ def show_news():
     최신 뉴스 기사를 통해 세계 식품 시장의 흐름을 파악할 수 있습니다.\n
     AI가 분석한 미국의 주요 이슈 관련 인사이트를 함께 확인할 수 있습니다.
     """)
-    openai_api_key = os.getenv('OPENAI_API_KEY')
+    openai_api_key = st.secrets["OPENAI_API_KEY"]
 
     articles = fetch_articles_with_keyword(keyword=None, max_pages=5, max_articles=3)
 
