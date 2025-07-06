@@ -90,47 +90,59 @@ def load_recall_documents():
         return []
 
 def initialize_recall_vectorstore():
-    """리콜 전용 벡터스토어를 초기화하거나 기존 데이터를 로드"""
+    """이 코드는 리콜 전용 벡터스토어를 초기화하거나 기존 데이터를 로드합니다"""
     persist_dir = "./data/chroma_db_recall"
     
-    # 기존 벡터스토어 존재 여부 확인
+    # 기존 벡터스토어 확인
     if os.path.exists(persist_dir) and os.listdir(persist_dir):
         try:
             print("기존 리콜 벡터스토어를 로드합니다...")
             embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=openai_api_key)
+            
             vectorstore = Chroma(
                 persist_directory=persist_dir,
                 embedding_function=embeddings,
                 collection_name="FDA_recalls"
             )
+            
             collection = vectorstore._collection
             if collection.count() > 0:
                 print(f"리콜 벡터스토어 로드 완료 ({collection.count()}개 문서)")
                 return vectorstore
+                
         except Exception as e:
             print(f"기존 리콜 벡터스토어 로드 실패: {e}")
-
-    # 새로 생성 시도
-    documents = load_recall_documents()
-    if not documents:
-        print("⚠️ 리콜 문서 없음 - 벡터스토어 생성 생략")
-        return None  # ❌ raise 하지 않고 None 반환
     
+    # 새 벡터스토어 생성
     try:
         print("새 리콜 벡터스토어를 생성합니다...")
+        documents = load_recall_documents()
+        
+        if not documents:
+            raise ValueError("로드된 리콜 문서가 없습니다.")
+        
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=openai_api_key)
+        
         vectorstore = Chroma.from_documents(
             documents=documents,
             embedding=embeddings,
             collection_name="FDA_recalls",
             persist_directory=persist_dir
         )
+        
         print(f"리콜 벡터스토어 생성 완료 ({len(documents)}개 문서)")
         return vectorstore
+        
     except Exception as e:
-        print(f"❌ 벡터스토어 생성 중 오류: {e}")
-        return None
+        print(f"리콜 벡터스토어 초기화 오류: {e}")
+        raise
 
+# 전역 벡터스토어 초기화
+try:
+    recall_vectorstore = initialize_recall_vectorstore()
+except Exception as e:
+    print(f"벡터스토어 초기화 실패: {e}")
+    recall_vectorstore = None
 
 def translation_node(state: RecallState) -> RecallState:
     """조건부 번역 노드 - 고유명사 보존 번역"""
