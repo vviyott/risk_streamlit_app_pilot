@@ -14,7 +14,7 @@ risk_streamlit_app/
 │   └── chat_common_functions.py
 │   └── chat_regulation.py
 │   └── chat_recall.py
-│ 	└── fda_realtime_crawler.py
+│   └── fda_realtime_crawler.py
 │   └── google_crawler.py
 │   └── c.py
 └── requirements.txt
