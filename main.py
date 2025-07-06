@@ -48,7 +48,7 @@ html, body, [class*="css"] {
 }
 
 /* 제목 태그 (h1 ~ h4) 크기/굵기 설정 */
-h1, h2, h3, h4 {a
+h1, h2, h3, h4 {
   font-size: 26px !important;
   font-weight: bold !important;
 }
