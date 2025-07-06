@@ -4,8 +4,8 @@ import json
 import os
 from datetime import datetime, timedelta
 from typing import TypedDict, List, Dict, Any
-# from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+import streamlit as st
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
@@ -16,7 +16,7 @@ from langchain_teddynote import logging
 from utils.fda_realtime_crawler import get_crawler, update_vectorstore_with_new_data,get_latest_date_from_vectorstore
 from utils.google_crawler import search_and_extract_news, format_news_for_context
 
-# load_dotenv()
+openai_api_key = st.secrets["OPENAI_API_KEY"]
 logging.langsmith("LLMPROJECT")
 
 class RecallState(TypedDict):
@@ -97,7 +97,7 @@ def initialize_recall_vectorstore():
     if os.path.exists(persist_dir) and os.listdir(persist_dir):
         try:
             print("기존 리콜 벡터스토어를 로드합니다...")
-            embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+            embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=openai_api_key)
             
             vectorstore = Chroma(
                 persist_directory=persist_dir,
@@ -121,7 +121,7 @@ def initialize_recall_vectorstore():
         if not documents:
             raise ValueError("로드된 리콜 문서가 없습니다.")
         
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=openai_api_key)
         
         vectorstore = Chroma.from_documents(
             documents=documents,
@@ -169,7 +169,7 @@ def translation_node(state: RecallState) -> RecallState:
 def translate_with_proper_nouns(korean_text: str) -> str:
     """고유명사를 보존하면서 번역하는 개선된 함수"""
     try:
-        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.1)
+        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.1, openai_api_key=openai_api_key)
         
         # 🆕 고유명사 보존 프롬프트
         prompt = f"""
@@ -209,7 +209,7 @@ def translate_with_proper_nouns(korean_text: str) -> str:
 def extract_search_keywords(question: str) -> str:
     """이 코드는 질문에서 뉴스 검색용 핵심 키워드를 추출합니다"""
     try:
-        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.1)
+        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.1, openai_api_key=openai_api_key)
         
         prompt = f"""
             다음 질문에서 뉴스 검색에 적합한 핵심 키워드만 추출하세요.
