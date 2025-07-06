@@ -40,6 +40,7 @@ risk_streamlit_app/
 | `tab_recall.py`            | 리콜 사례 모드 챗봇                                                                                   |
 | `tab_export.py`            | 분석 리포트 도우미                                                                                    |
 | `genai_rpa.xlsx`           | 엑셀 템플릿                                                                                        |
+|                            |                                                                                                                    |
 | `data_loader.py`           | Streamlit 앱 실행 시 필요한 데이터 파일(`data.zip`)을 자동으로 다운로드하고 압축 해제해주는 초기 설정 코드                        |
 | `chat_common_functions.py` | 저장/로드 함수들, LangChain 히스토리 변환, 세션 상태 관리 유틸리티, 공통 검증 함수들                                        |
 | `chat_regulation.py`       | 규제 모드 챗봇 기능                                                                                   |
@@ -47,6 +48,7 @@ risk_streamlit_app/
 | `fda_realtime_crawler.py`  | 리콜 사례 추가 업데이트 내용 크롤링을 위한 함수                                                                   |
 | `google_crawler.py`        | 구글 뉴스 RSS를 활용해 특정 키워드의 관련된 FDA 리콜 뉴스를 검색하고,<br>본문 내용을 추출한 뒤, 리콜 관련 여부를 판단해 포맷된 뉴스 정보를 반환하는 모듈 |
 | `c.py`                     | eCFR 크롤링 + 번역 + 요약                                                                            |
+|                            |                                                                                                                    |
 | `requirements.txt`         | pip으로 설치할 Python 패키지 설치 목록                                                                    |
 | `runtime.txt`              | Python 버전 지정 (예: `python-3.10`)                                                               |
 | `packages.txt`             | apt로 설치할 리눅스 시스템 패키지                                                                          |
