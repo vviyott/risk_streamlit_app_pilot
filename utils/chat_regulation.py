@@ -1,4 +1,4 @@
-# utils/chat_regulation.py (v0)
+# utils/chat_regulation.py
 
 import json
 import os
