@@ -104,6 +104,36 @@ def create_recall_chunks(text, chunk_size=800, overlap_size=120):
     
     return chunks
 
+def get_latest_date_from_vectorstore(vectorstore):
+    """벡터스토어에서 가장 최근 날짜 조회"""
+    try:
+        all_data = vectorstore.get()
+        metadatas = all_data.get('metadatas', [])
+        
+        latest_date = None
+        for metadata in metadatas:
+            if metadata and metadata.get('effective_date'):
+                date_str = metadata['effective_date']
+                try:
+                    date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                    if latest_date is None or date_obj > latest_date:
+                        latest_date = date_obj
+                except:
+                    continue
+        
+        if latest_date:
+            print(f"📅 벡터DB 최신 날짜: {latest_date.strftime('%Y-%m-%d')}")
+            return latest_date
+        else:
+            # 벡터DB에 날짜가 없으면 30일 전부터
+            fallback_date = datetime.now() - timedelta(days=30)
+            print(f"📅 벡터DB에 날짜 없음, 기본값 사용: {fallback_date.strftime('%Y-%m-%d')}")
+            return fallback_date
+            
+    except Exception as e:
+        print(f"최신 날짜 조회 오류: {e}")
+        return datetime.now() - timedelta(days=30)
+
 # utils/fda_realtime_crawler.py 의 FDARealtimeCrawler 클래스 수정
 
 class FDARealtimeCrawler:
@@ -193,155 +223,169 @@ class FDARealtimeCrawler:
             print(f"기존 URL 확인 오류: {e}")
             return set()
     
-    def crawl_latest_recalls(self, days_back: int = 15, vectorstore=None) -> List[Dict]:
-        """최적화된 리콜 데이터 크롤링 - 날짜 필터 수정"""
+    def crawl_latest_recalls(self, after_date=None, vectorstore=None) -> List[Dict]:
+        """날짜 기반 필터링으로 크롤링"""
+        if after_date is None:
+            after_date = datetime.now() - timedelta(days=15)
+        
+        # 🆕 벡터DB 최신 날짜 이후만 수집
+        cutoff_date = after_date  # 하루 여유 제거, 정확한 날짜부터 수집
         recalls = []
         
         try:
             self._init_driver()
             
-            # 기존 URL 목록 가져오기 (중복 체크용)
-            existing_urls = set()
-            if vectorstore:
-                existing_urls = self.get_existing_urls_from_vectorstore(vectorstore)
-            
             self.driver.get(self.base_url)
-            time.sleep(2)
+            time.sleep(3)
             
-            print(f"최근 {days_back}일간의 새로운 Food & Beverages 리콜 수집 중...")
-            print(f"제외할 기존 URL: {len(existing_urls)}개")
+            print("🎯 Food & Beverages 필터 적용 중...")
             
-            # 날짜 필터링 수정 - 더 관대하게
-            cutoff_date = datetime.now() - timedelta(days=days_back + 1)  # 하루 더 여유
-            print(f"수집 기준일: {cutoff_date.strftime('%Y-%m-%d')} 이후")
+            # Product Type 드롭다운 클릭
+            try:
+                product_type_dropdown = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "select[name='field_regulated_product_field']"))
+                )
+                product_type_dropdown.click()
+                time.sleep(1)
+                
+                # Food & Beverages 옵션 선택
+                food_beverages_option = WebDriverWait(self.driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "option[value='2323']"))
+                )
+                food_beverages_option.click()
+                time.sleep(2)
+                
+                print("✅ Food & Beverages 필터 적용 완료")
+                
+            except Exception as e:
+                print(f"❌ 필터 적용 실패: {e}")
+                return []
             
-            processed_urls = set()
-            max_pages = 2
+            # 필터 적용 후 테이블 로딩 대기
+            try:
+                WebDriverWait(self.driver, 15).until(
+                    EC.presence_of_element_located((By.ID, "datatable"))
+                )
+                time.sleep(3)
+                print("📊 필터링된 테이블 로딩 완료")
+            except TimeoutException:
+                print("❌ 필터링된 테이블 로딩 실패")
+                return []
+            
+            print(f"📅 수집 기준: {cutoff_date.strftime('%Y-%m-%d')} 이후 데이터만 수집")
+            
+            processed_urls = set()  # 현재 세션 중복 방지용
+            max_pages = 5  # 페이지 범위 확장
+            found_old_data = False  # 오래된 데이터 발견 시 중단용
             
             for page in range(1, max_pages + 1):
                 print(f"페이지 {page} 처리 중...")
                 
-                # 테이블 로딩 대기
-                try:
-                    WebDriverWait(self.driver, 10).until(
-                        EC.presence_of_element_located((By.ID, "datatable"))
-                    )
-                    time.sleep(0.5)
-                except TimeoutException:
-                    print(f"페이지 {page} 테이블 로딩 실패")
-                    break
-                
-                # 현재 페이지의 리콜 링크 수집 및 중복 필터링
-                new_recall_links = []
+                # 현재 페이지의 리콜 링크 및 날짜 수집
+                page_recall_data = []
                 try:
                     table = self.driver.find_element(By.ID, "datatable")
                     rows = table.find_elements(By.XPATH, ".//tbody/tr")
                     
                     for row in rows:
                         try:
-                            # Brand Name 링크 추출 (2번째 td)
+                            # 날짜 정보 추출
+                            date_cell = row.find_elements(By.TAG_NAME, "td")[0]
+                            date_text = date_cell.text.strip()
+                            
+                            # Brand Name 링크 추출
                             brand_cell = row.find_elements(By.TAG_NAME, "td")[1]
                             link_element = brand_cell.find_element(By.TAG_NAME, "a")
                             recall_url = link_element.get_attribute('href')
                             
-                            # 중복 체크 (기존 DB + 현재 처리된 URL)
-                            if (recall_url and 
-                                recall_url not in existing_urls and 
-                                recall_url not in processed_urls):
-                                new_recall_links.append(recall_url)
-                                processed_urls.add(recall_url)
+                            # 🆕 테이블에서 날짜 파싱
+                            try:
+                                # "06/30/2025" 형태를 datetime으로 변환
+                                table_date = datetime.strptime(date_text, '%m/%d/%Y')
                                 
-                        except Exception:
+                                print(f"      발견: {date_text} ({table_date.strftime('%Y-%m-%d')}) - {recall_url[-40:]}...")
+                                
+                                # 🆕 날짜 기반 필터링
+                                if table_date >= cutoff_date:
+                                    # 현재 세션 중복 체크만 수행
+                                    if recall_url not in processed_urls:
+                                        page_recall_data.append({
+                                            'url': recall_url,
+                                            'table_date': table_date,
+                                            'date_text': date_text
+                                        })
+                                        processed_urls.add(recall_url)
+                                        print(f"      ✅ 수집 대상: {date_text}")
+                                    else:
+                                        print(f"      ⏩ 현재 세션 중복: {date_text}")
+                                else:
+                                    print(f"      ❌ 날짜 필터링: {date_text} (기준: {cutoff_date.strftime('%Y-%m-%d')} 이후)")
+                                    found_old_data = True
+                                    
+                            except ValueError as e:
+                                print(f"      ⚠️ 날짜 파싱 실패: {date_text} - {e}")
+                                continue
+                                
+                        except Exception as e:
+                            print(f"      ❌ 행 처리 오류: {e}")
                             continue
                     
-                    print(f"페이지 {page}: 새로운 URL {len(new_recall_links)}개 발견")
+                    print(f"페이지 {page}: 수집 대상 {len(page_recall_data)}개 발견")
                     
                 except Exception as e:
                     print(f"페이지 {page} 링크 수집 오류: {e}")
                     break
                 
-                # 새로운 URL이 없으면 다음 페이지로
-                if not new_recall_links:
-                    print("새로운 URL이 없어 다음 페이지로 이동")
-                    continue
-                
-                # 개별 리콜 페이지 처리
-                food_found_count = 0
-                for i, recall_url in enumerate(new_recall_links[:8]):
-                    try:
-                        print(f"  검사 중 ({i+1}/{min(8, len(new_recall_links))}): {recall_url[-30:]}...")
-                        
-                        # Food & Beverages 여부 먼저 확인
-                        if not self.check_food_beverages_in_summary(recall_url):
-                            print(f"    ❌ Food & Beverages 아님")
-                            continue
-                        
-                        # Food & Beverages인 경우 메타데이터 추출
-                        recall_data = self.extract_recall_metadata(recall_url)
-                        
-                        if recall_data:
-                            # 날짜 필터링 - 더 관대하게 적용
-                            should_skip = False
-                            if recall_data['effective_date']:
-                                try:
-                                    recall_date = datetime.strptime(recall_data['effective_date'], '%Y-%m-%d')
-                                    if recall_date < cutoff_date:
-                                        print(f"    ⏩ 날짜 필터링: {recall_data['effective_date']} (기준: {cutoff_date.strftime('%Y-%m-%d')})")
-                                        should_skip = True
-                                except Exception as e:
-                                    print(f"    ⚠️ 날짜 파싱 오류: {e}")
-                            
-                            if not should_skip:
-                                print(f"    ✅ Food & Beverages 수집: {recall_data['title'][:40]}...")
-                                recalls.append(recall_data)
-                                food_found_count += 1
-                                
-                                # 충분히 수집했으면 중단
-                                if len(recalls) >= 5:
-                                    print(f"목표 달성: {len(recalls)}건 수집 완료")
-                                    return recalls
-                        
-                    except Exception as e:
-                        print(f"    ❌ 리콜 페이지 처리 오류: {e}")
-                        continue
-                
-                print(f"페이지 {page} 완료: Food & Beverages {food_found_count}건 발견")
-                
-                # 충분한 데이터를 찾았으면 중단
-                if food_found_count > 0 and len(recalls) >= 3:
-                    print("충분한 새 데이터 수집으로 중단")
+                # 🆕 수집 대상이 없으면서 오래된 데이터를 발견했으면 중단
+                if not page_recall_data and found_old_data:
+                    print("오래된 데이터 발견으로 크롤링 중단")
                     break
                 
-                # 다음 페이지로 이동
-                if page < max_pages:
+                # 개별 리콜 페이지 처리
+                for i, recall_info in enumerate(page_recall_data[:10]):
                     try:
-                        self.driver.get(self.base_url)
-                        time.sleep(1.5)
+                        recall_url = recall_info['url']
+                        print(f"  데이터 추출 중 ({i+1}/{min(10, len(page_recall_data))}): {recall_info['date_text']}...")
                         
-                        WebDriverWait(self.driver, 8).until(
-                            EC.presence_of_element_located((By.ID, "datatable"))
-                        )
-                        time.sleep(0.5)
+                        # 메타데이터 추출
+                        recall_data = self.extract_recall_metadata_direct(recall_url)
                         
-                        # Next 버튼 클릭으로 페이지 이동
-                        for _ in range(page):
-                            next_button = WebDriverWait(self.driver, 8).until(
-                                EC.element_to_be_clickable((By.ID, "datatable_next"))
-                            )
+                        if recall_data:
+                            print(f"    ✅ 수집 완료: {recall_data['title'][:40]}... (날짜: {recall_data.get('effective_date', 'N/A')})")
+                            recalls.append(recall_data)
                             
-                            if "disabled" in (next_button.get_attribute("class") or ""):
-                                print("마지막 페이지 도달")
+                            # 충분히 수집했으면 중단
+                            if len(recalls) >= 10:
+                                print(f"목표 달성: {len(recalls)}건 수집 완료")
                                 return recalls
-                            
-                            next_link = next_button.find_element(By.TAG_NAME, "a")
-                            self.driver.execute_script("arguments[0].click();", next_link)
-                            time.sleep(0.8)
-                            
+                        
+                    except Exception as e:
+                        print(f"    ❌ 데이터 추출 오류: {e}")
+                        continue
+                
+                # 다음 페이지로 이동
+                if page < max_pages and page_recall_data:  # 수집 데이터가 있을 때만 다음 페이지
+                    try:
+                        next_button = WebDriverWait(self.driver, 8).until(
+                            EC.element_to_be_clickable((By.ID, "datatable_next"))
+                        )
+                        
+                        if "disabled" in (next_button.get_attribute("class") or ""):
+                            print("마지막 페이지 도달")
+                            break
+                        
+                        next_link = next_button.find_element(By.TAG_NAME, "a")
+                        self.driver.execute_script("arguments[0].click();", next_link)
+                        time.sleep(3)
+                        
                     except Exception as e:
                         print(f"페이지 이동 오류: {e}")
                         break
+                else:
+                    print("수집할 데이터가 없어 크롤링 종료")
+                    break
             
-            print(f"크롤링 완료: 새로운 Food & Beverages 리콜 {len(recalls)}건 수집")
+            print(f"크롤링 완료: {cutoff_date.strftime('%Y-%m-%d')} 이후 Food & Beverages 리콜 {len(recalls)}건 수집")
             return recalls
             
         except Exception as e:
@@ -351,96 +395,103 @@ class FDARealtimeCrawler:
         finally:
             self._close_driver()
 
+    
+
     def extract_recall_metadata(self, url):
-        """메타데이터 추출 - 이미 Food & Beverages 확인됨"""
-        # 이미 check_food_beverages_in_summary에서 확인했으므로 바로 추출
-        soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+        """메타데이터 추출 - 청크 없이 전체 내용 저장"""
+        try:
+            self.driver.get(url)
+            time.sleep(2)
+            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
         
-        # 1. 제목 추출
-        title = ""
-        title_selectors = [
-            'h1.content-title', 'h1[class*="content-title"]', 'h1'
-        ]
-        
-        for selector in title_selectors:
-            title_element = soup.select_one(selector)
-            if title_element:
-                title = title_element.get_text().strip()
-                break
-        
-        # 2. 날짜 정보 추출
-        effective_date = ""
-        last_updated = ""
-        
-        def parse_date_text(date_text):
-            if not date_text:
-                return ""
-            try:
-                date_obj = datetime.strptime(date_text.strip(), '%B %d, %Y')
-                return date_obj.strftime('%Y-%m-%d')
-            except:
-                return ""
-        
-        # Summary 섹션에서 날짜 추출
-        summary_section = soup.find('h2', string='Summary')
-        if summary_section:
-            summary_content = summary_section.find_next('div', class_='inset-column')
-            if summary_content:
-                for dt in summary_content.find_all('dt'):
-                    if 'Company Announcement Date' in dt.get_text():
-                        dd = dt.find_next('dd')
-                        if dd:
-                            time_element = dd.find('time')
-                            if time_element:
-                                effective_date = parse_date_text(time_element.get_text())
-                            break
+            # 제목, 날짜 추출 (기존과 동일)
+            title = ""
+            title_selectors = ['h1.content-title', 'h1[class*="content-title"]', 'h1']
+            
+            for selector in title_selectors:
+                title_element = soup.select_one(selector)
+                if title_element:
+                    title = title_element.get_text().strip()
+                    break
+            
+            # 날짜 정보 추출 (기존과 동일)
+            effective_date = ""
+            last_updated = ""
+            
+            def parse_date_text(date_text):
+                if not date_text:
+                    return ""
+                try:
+                    date_obj = datetime.strptime(date_text.strip(), '%B %d, %Y')
+                    return date_obj.strftime('%Y-%m-%d')
+                except:
+                    return ""
+            
+            # Summary 섹션에서 날짜 추출 (기존과 동일)
+            summary_section = soup.find('h2', string='Summary')
+            if summary_section:
+                summary_content = summary_section.find_next('div', class_='inset-column')
+                if summary_content:
+                    for dt in summary_content.find_all('dt'):
+                        if 'Company Announcement Date' in dt.get_text():
+                            dd = dt.find_next('dd')
+                            if dd:
+                                time_element = dd.find('time')
+                                if time_element:
+                                    effective_date = parse_date_text(time_element.get_text())
+                                break
+                    
+                    for dt in summary_content.find_all('dt'):
+                        if 'FDA Publish Date' in dt.get_text():
+                            dd = dt.find_next('dd')
+                            if dd:
+                                time_element = dd.find('time')
+                                if time_element:
+                                    last_updated = parse_date_text(time_element.get_text())
+                                break
+            
+            # 🆕 Company Announcement 전체 내용 저장 (청크 없이)
+            company_announcement = ""
+            announcement_section = soup.find('h2', string='Company Announcement')
+            if announcement_section:
+                current = announcement_section.find_next_sibling()
+                announcement_parts = []
                 
-                for dt in summary_content.find_all('dt'):
-                    if 'FDA Publish Date' in dt.get_text():
-                        dd = dt.find_next('dd')
-                        if dd:
-                            time_element = dd.find('time')
-                            if time_element:
-                                last_updated = parse_date_text(time_element.get_text())
-                            break
+                while current and current.name != 'hr':
+                    if current.name == 'p':
+                        text = current.get_text().strip()
+                        if text:
+                            announcement_parts.append(text)
+                    current = current.find_next_sibling()
+                
+                company_announcement = '\n\n'.join(announcement_parts)
         
-        # 3. Company Announcement 추출
-        company_announcement = ""
-        announcement_section = soup.find('h2', string='Company Announcement')
-        if announcement_section:
-            current = announcement_section.find_next_sibling()
-            announcement_parts = []
-            
-            while current and current.name != 'hr':
-                if current.name == 'p':
-                    text = current.get_text().strip()
-                    if text:
-                        announcement_parts.append(text)
-                current = current.find_next_sibling()
-            
-            company_announcement = '\n\n'.join(announcement_parts)
+            return {
+                "document_type": "recall",
+                "category": "Food & Beverages", 
+                "title": title,
+                "url": url,
+                "effective_date": effective_date,
+                "last_updated": last_updated,
+                "full_content": company_announcement  # 🆕 청크 대신 전체 내용
+            }
+        except Exception as e:
+            print(f"메타데이터 추출 오류: {e}")
+            return None
+
         
-        # 4. 청크 생성
-        content_chunks = create_recall_chunks(company_announcement) if company_announcement else []
-        
-        return {
-            "document_type": "recall",
-            "category": "Food & Beverages",
-            "title": title,
-            "url": url,
-            "effective_date": effective_date,
-            "last_updated": last_updated,
-            "chunks": content_chunks
-        }
+    def extract_recall_metadata_direct(self, url):
+        """Food & Beverages 확인 없이 바로 메타데이터 추출"""
+        return self.extract_recall_metadata(url)  # 기존 메서드 재사용
 
 def update_vectorstore_with_new_data(new_recalls: List[Dict], vectorstore) -> int:
-    """새로운 리콜 데이터를 벡터스토어에 추가 - 개선된 버전"""
+    """새로운 리콜 데이터를 벡터스토어에 추가 - 청크 없이 단일 문서로"""
     if not new_recalls or not vectorstore:
         print("⚠️ 추가할 데이터가 없거나 벡터스토어가 없습니다")
         return 0
     
     try:
-        # 1. 기존 데이터에서 중복 URL 확인
+        # 기존 중복 확인 (동일)
         existing_urls = set()
         try:
             existing_data = vectorstore.get()
@@ -451,33 +502,28 @@ def update_vectorstore_with_new_data(new_recalls: List[Dict], vectorstore) -> in
         except Exception as e:
             print(f"기존 데이터 확인 중 오류: {e}")
         
-        # 2. 새 문서들 생성
+        # 🆕 새 문서들 생성 (1개 URL = 1개 문서)
         new_documents = []
         processed_urls = set()
         
         for recall in new_recalls:
             recall_url = recall.get('url', '')
             
-            # 중복 체크 (기존 데이터 및 현재 배치 내)
+            # 중복 체크
             if recall_url in existing_urls or recall_url in processed_urls:
                 print(f"⏩ 중복 건너뛰기: {recall.get('title', '')[:50]}...")
                 continue
             
             processed_urls.add(recall_url)
             
-            # chunks를 개별 문서로 처리
-            chunks = recall.get("chunks", [])
-            if not chunks:
-                print(f"⚠️ 청크 없음: {recall.get('title', '')}")
+            # 🆕 전체 내용 처리 (청크 없이)
+            full_content = recall.get("full_content", "")
+            if not full_content or len(full_content.strip()) < 100:
+                print(f"⚠️ 내용 부족: {recall.get('title', '')}")
                 continue
-                
-            for i, chunk_content in enumerate(chunks):
-                # 빈 내용 건너뛰기
-                if not chunk_content or len(chunk_content.strip()) < 30:
-                    continue
-                
-                # 구조화된 컨텐츠 생성 (기존 형식과 동일)
-                structured_content = f"""
+            
+            # 구조화된 컨텐츠 생성
+            structured_content = f"""
 제목: {recall.get('title', '')}
 카테고리: {recall.get('category', '')}
 등급: {recall.get('class', 'Unclassified')}
@@ -485,34 +531,31 @@ def update_vectorstore_with_new_data(new_recalls: List[Dict], vectorstore) -> in
 최종 업데이트: {recall.get('last_updated', '')}
 
 리콜 내용:
-{chunk_content}
-                """.strip()
-                
-                # 메타데이터 설정 (realtime_crawl로 출처 표시)
-                metadata = {
-                    "document_type": "recall",
-                    "category": recall.get('category', ''),
-                    "class": recall.get('class', 'Unclassified'),
-                    "title": recall.get('title', ''),
-                    "url": recall_url,
-                    "effective_date": recall.get('effective_date', ''),
-                    "last_updated": recall.get('last_updated', ''),
-                    "chunk_index": str(i),
-                    "source": "realtime_crawl",  # 실시간 크롤링 표시
-                    "crawl_timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # 크롤링 시간 추가
-                }
-                
-                doc = Document(page_content=structured_content, metadata=metadata)
-                new_documents.append(doc)
+{full_content}
+            """.strip()
+            
+            # 🆕 메타데이터 (chunk_index 제거)
+            metadata = {
+                "document_type": "recall",
+                "category": recall.get('category', ''),
+                "class": recall.get('class', 'Unclassified'),
+                "title": recall.get('title', ''),
+                "url": recall_url,
+                "effective_date": recall.get('effective_date', ''),
+                "last_updated": recall.get('last_updated', ''),
+                "source": "realtime_crawl",
+                "crawl_timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+            
+            doc = Document(page_content=structured_content, metadata=metadata)
+            new_documents.append(doc)
         
-        # 3. 벡터스토어에 추가
+        # 벡터스토어에 추가 (동일)
         if new_documents:
             try:
-                # Chroma는 add_documents 메서드 사용
                 vectorstore.add_documents(new_documents)
                 print(f"✅ 벡터스토어에 {len(new_documents)}개 새 문서 추가 완료")
                 
-                # 추가 후 상태 확인
                 total_count = vectorstore._collection.count()
                 print(f"📊 현재 벡터스토어 총 문서 수: {total_count}개")
                 
@@ -520,7 +563,7 @@ def update_vectorstore_with_new_data(new_recalls: List[Dict], vectorstore) -> in
                 print(f"❌ 벡터스토어 추가 오류: {e}")
                 return 0
         else:
-            print("ℹ️ 추가할 새 문서가 없습니다 (모두 중복 또는 빈 내용)")
+            print("ℹ️ 추가할 새 문서가 없습니다")
             
         return len(new_documents)
         
