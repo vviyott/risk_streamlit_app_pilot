@@ -3,7 +3,6 @@
 import json
 import os
 from functools import wraps
-# from dotenv import load_dotenv
 from typing import TypedDict, List, Dict, Any 
 from chromadb.config import Settings
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI 
