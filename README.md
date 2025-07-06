@@ -49,4 +49,4 @@ risk_streamlit_app/
 | `requirements.txt`         | pip으로 설치할 Python 패키지 설치 목록                                                                    |
 | `runtime.txt`              | Python 버전 지정 (예: `python-3.10`)                                                               |
 | `packages.txt`             | apt로 설치할 리눅스 시스템 패키지                                                                          |
-| `가이드.png`                  | `tab_export` 설명용 이미지                                                                          |
+| `가이드.png`                | `tab_export` 설명용 이미지                                                                          |
