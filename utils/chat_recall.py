@@ -4,7 +4,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from typing import TypedDict, List, Dict, Any
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
@@ -16,7 +16,7 @@ from langchain_teddynote import logging
 from utils.fda_realtime_crawler import get_crawler, update_vectorstore_with_new_data,get_latest_date_from_vectorstore
 from utils.google_crawler import search_and_extract_news, format_news_for_context
 
-load_dotenv()
+# load_dotenv()
 logging.langsmith("LLMPROJECT")
 
 class RecallState(TypedDict):
@@ -173,21 +173,21 @@ def translate_with_proper_nouns(korean_text: str) -> str:
         
         # 🆕 고유명사 보존 프롬프트
         prompt = f"""
-다음 한국어 텍스트를 영어로 번역하되, 제품명과 브랜드명은 원형을 유지하세요.
-
-번역 규칙:
-1. 제품명/브랜드명은 한국어 원형 유지 (예: 불닭볶음면 → Buldak)
-2. 일반적인 식품 카테고리만 영어로 번역 (예: 라면 → ramen, 과자 → snack)
-3. "리콜", "사례" 등은 영어로 번역
-4. 번역문만 반환하고 설명 없이
-
-예시:
-- "불닭볶음면의 리콜 사례" → "Buldak ramen recall case"
-- "오리온 초코파이 리콜" → "Orion Choco Pie recall"
-
-한국어 텍스트: {korean_text}
-
-영어 번역:"""
+            다음 한국어 텍스트를 영어로 번역하되, 제품명과 브랜드명은 원형을 유지하세요.
+            
+            번역 규칙:
+            1. 제품명/브랜드명은 한국어 원형 유지 (예: 불닭볶음면 → Buldak)
+            2. 일반적인 식품 카테고리만 영어로 번역 (예: 라면 → ramen, 과자 → snack)
+            3. "리콜", "사례" 등은 영어로 번역
+            4. 번역문만 반환하고 설명 없이
+            
+            예시:
+            - "불닭볶음면의 리콜 사례" → "Buldak ramen recall case"
+            - "오리온 초코파이 리콜" → "Orion Choco Pie recall"
+            
+            한국어 텍스트: {korean_text}
+            
+            영어 번역:"""
 
         response = llm.invoke([HumanMessage(content=prompt)])
         translated = response.content.strip()
@@ -212,23 +212,23 @@ def extract_search_keywords(question: str) -> str:
         llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.1)
         
         prompt = f"""
-다음 질문에서 뉴스 검색에 적합한 핵심 키워드만 추출하세요.
-
-규칙:
-1. 제품명, 브랜드명, 식품명, 회사명만 추출
-2. "회수", "사례", "있나요", "어떤", "최근", "언제" 같은 불필요한 단어 제거
-3. 영어 브랜드명은 원형 유지 (예: McDonald's, KFC)
-4. 최대 3개 키워드로 제한
-5. 키워드 마지막에 "리콜" 단어 항상 추가
-5. 키워드만 공백으로 구분해서 반환 (설명이나 부가설명 없이)
-
-예시:
-- "맥도날드 햄버거 리콜 사례가 있나요?" → "맥도날드 햄버거 리콜"
-- "오리온 초코파이 최근 리콜 어떤 게 있어?" → "오리온 초코파이 리콜"
-- "만두 리콜 사례" → "만두 리콜"
-
-질문: {question}
-키워드:"""
+            다음 질문에서 뉴스 검색에 적합한 핵심 키워드만 추출하세요.
+            
+            규칙:
+            1. 제품명, 브랜드명, 식품명, 회사명만 추출
+            2. "회수", "사례", "있나요", "어떤", "최근", "언제" 같은 불필요한 단어 제거
+            3. 영어 브랜드명은 원형 유지 (예: McDonald's, KFC)
+            4. 최대 3개 키워드로 제한
+            5. 키워드 마지막에 "리콜" 단어 항상 추가
+            5. 키워드만 공백으로 구분해서 반환 (설명이나 부가설명 없이)
+            
+            예시:
+            - "맥도날드 햄버거 리콜 사례가 있나요?" → "맥도날드 햄버거 리콜"
+            - "오리온 초코파이 최근 리콜 어떤 게 있어?" → "오리온 초코파이 리콜"
+            - "만두 리콜 사례" → "만두 리콜"
+            
+            질문: {question}
+            키워드:"""
 
         response = llm.invoke([HumanMessage(content=prompt)])
         keywords = response.content.strip()
@@ -577,27 +577,27 @@ def check_document_relevance(question: str, documents: List[Document]) -> List[D
             
             # 🆕 개선된 관련성 판단 프롬프트
             relevance_prompt = f"""
-다음 질문과 FDA 리콜 문서의 관련성을 엄격히 판단하세요.
-
-질문: {question}
-핵심 키워드: {question_keywords}
-
-FDA 리콜 문서:
-제목: {title}
-내용: {content_preview}
-
-엄격한 판단 기준:
-1. 핵심 키워드가 제목이나 내용에 직접적으로 포함되어 있는가?
-2. 동일한 제품명/브랜드명이 언급되는가?
-3. 같은 식품 카테고리 내에서도 구체적으로 일치하는가?
-
-예시:
-- 질문 "만두 리콜" vs 문서 "dumpling recall" → 관련
-- 질문 "만두 리콜" vs 문서 "pasta recall" → 무관
-- 질문 "삼양 라면" vs 문서 "농심 라면" → 무관
-
-답변: "관련" 또는 "무관" 중 하나만 반환하세요.
-"""
+                다음 질문과 FDA 리콜 문서의 관련성을 엄격히 판단하세요.
+                
+                질문: {question}
+                핵심 키워드: {question_keywords}
+                
+                FDA 리콜 문서:
+                제목: {title}
+                내용: {content_preview}
+                
+                엄격한 판단 기준:
+                1. 핵심 키워드가 제목이나 내용에 직접적으로 포함되어 있는가?
+                2. 동일한 제품명/브랜드명이 언급되는가?
+                3. 같은 식품 카테고리 내에서도 구체적으로 일치하는가?
+                
+                예시:
+                - 질문 "만두 리콜" vs 문서 "dumpling recall" → 관련
+                - 질문 "만두 리콜" vs 문서 "pasta recall" → 무관
+                - 질문 "삼양 라면" vs 문서 "농심 라면" → 무관
+                
+                답변: "관련" 또는 "무관" 중 하나만 반환하세요.
+                """
             
             response = llm.invoke([HumanMessage(content=relevance_prompt)])
             relevance = response.content.strip().lower()
