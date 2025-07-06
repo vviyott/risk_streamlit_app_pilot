@@ -1,3 +1,5 @@
+# tab_recall.py
+
 import streamlit as st
 import plotly.express as px
 import pandas as pd
@@ -36,8 +38,9 @@ def init_recall_session_state(session_keys):
     if st.session_state.viz_data is None:
         update_visualization_data()
 
+
 def render_fixed_visualizations():
-    """상단 고정 시각화 섹션"""
+    """상단 고정 시각화 섹션 - 원인별 차트만 표시"""
     if not st.session_state.show_charts or not st.session_state.viz_data:
         return
     
@@ -45,36 +48,103 @@ def render_fixed_visualizations():
     viz_container = st.container()
     
     with viz_container:
-        st.markdown("### 📊 리콜 데이터 분석 대시보드")
+        st.markdown("""<h1 style="font-size: 20px;"> 리콜 데이터 분석 대시보드</h1>""",unsafe_allow_html=True)
         
-        # 통계 요약 카드
+        # 통계 요약 카드 (고정 크기)
         stats = st.session_state.viz_data.get('stats', {})
         if stats:
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                st.metric("총 리콜 건수", stats.get('total_recalls', 0))
+                total_recalls = stats.get('total_recalls', 0)
+                st.markdown(f"""
+                <div style="
+                    background-color:#f5f5f5; 
+                    padding:20px; 
+                    border-radius:10px; 
+                    border:1px solid #444;
+                    height:140px;
+                    display:flex;
+                    flex-direction:column;
+                    justify-content:center;
+                    min-width:0;
+                ">
+                    <p style='font-size:13px;text-align:left;color:#666;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>총 리콜 건수</p>
+                    <p style='font-size:25px;text-align:left;font-weight:bold;color:black;margin:8px 0;'>{total_recalls}건</p>
+                    <p style='font-size:12px;text-align:left;color:#888;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>전체 벡터DB 문서</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
             with col2:
-                st.metric("월평균", f"{stats.get('avg_monthly', 0)}건")
+                realtime_count = stats.get('realtime_recalls', 0)
+                realtime_ratio = stats.get('realtime_ratio', 0)
+                st.markdown(f"""
+                <div style="
+                    background-color:#f5f5f5; 
+                    padding:20px; 
+                    border-radius:10px; 
+                    border:1px solid #444;
+                    height:140px;
+                    display:flex;
+                    flex-direction:column;
+                    justify-content:center;
+                    min-width:0;
+                ">
+                    <p style='font-size:13px;text-align:left;color:#666;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>⚡'실시간' 데이터</p>
+                    <p style='font-size:25px;text-align:left;font-weight:bold;color:#e74c3c;margin:8px 0;'>{realtime_count}건</p>
+                    <p style='font-size:12px;text-align:left;color:#888;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>비율: {realtime_ratio:.1f}%</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
             with col3:
-                st.metric("실시간 데이터", f"{stats.get('realtime_data', 0)}건")
+                database_count = stats.get('database_recalls', 0)
+                st.markdown(f"""
+                <div style="
+                    background-color:#f5f5f5; 
+                    padding:20px; 
+                    border-radius:10px; 
+                    border:1px solid #444;
+                    height:140px;
+                    display:flex;
+                    flex-direction:column;
+                    justify-content:center;
+                    min-width:0;
+                ">
+                    <p style='font-size:13px;text-align:left;color:#666;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>📚기존 DB</p>
+                    <p style='font-size:25px;text-align:left;font-weight:bold;color:#3498db;margin:8px 0;'>{database_count:,}건</p>
+                    <p style='font-size:12px;text-align:left;color:#888;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>사전 구축 데이터</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
             with col4:
-                st.metric("피크 월", stats.get('peak_month', 'N/A'))
+                latest_crawl = stats.get('latest_crawl', '없음')
+                if latest_crawl != '없음' and len(latest_crawl) > 10:
+                    display_time = latest_crawl[:10]  # 날짜만
+                    display_hour = latest_crawl[11:16]  # 시간만
+                else:
+                    display_time = latest_crawl
+                    display_hour = ""
+                
+                st.markdown(f"""
+                <div style="
+                    background-color:#f5f5f5; 
+                    padding:20px; 
+                    border-radius:10px; 
+                    border:1px solid #444;
+                    height:140px;
+                    display:flex;
+                    flex-direction:column;
+                    justify-content:center;
+                    min-width:0;
+                ">
+                    <p style='font-size:13px;text-align:left;color:#666;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>최근 업데이트</p>
+                    <p style='font-size:25px;text-align:left;font-weight:bold;color:#27ae60;margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>{display_time}</p>
+                    <p style='font-size:12px;text-align:left;color:#888;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>{display_hour}</p>
+                </div>
+                """, unsafe_allow_html=True)
         
-        # 차트 섹션
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if 'reason_chart' in st.session_state.viz_data and st.session_state.viz_data['reason_chart']:
-                st.plotly_chart(st.session_state.viz_data['reason_chart'], use_container_width=True)
-            else:
-                st.info("리콜 원인 데이터를 분석 중입니다...")
-        
-        with col2:
-            if 'heatmap_chart' in st.session_state.viz_data and st.session_state.viz_data['heatmap_chart']:
-                st.plotly_chart(st.session_state.viz_data['heatmap_chart'], use_container_width=True)
-            else:
-                st.info("히트맵 생성을 위한 데이터가 부족합니다.")
+        # 간격 추가
+        st.markdown("<br>", unsafe_allow_html=True)
         
         st.markdown("---")  # 구분선
 
@@ -92,7 +162,7 @@ def update_visualization_data():
         st.error(f"시각화 데이터 업데이트 오류: {e}")
 
 def render_sidebar_controls(project_name, chat_mode, session_keys):
-    """사이드바 컨트롤 패널 렌더링"""
+    """사이드바 컨트롤 패널 렌더링 - 상태 표시만"""
     # 프로젝트 변경 처리
     project_changed = handle_project_change(project_name, chat_mode, session_keys)
     if project_changed:
@@ -131,6 +201,7 @@ def render_sidebar_controls(project_name, chat_mode, session_keys):
         st.rerun()
     
     return has_project_name, has_chat_history, is_processing
+
 
 def render_example_questions(session_keys, is_processing):
     """예시 질문 섹션 렌더링"""
@@ -223,9 +294,9 @@ def show_recall_chat():
     """리콜 전용 챗봇 - 자동 시각화 + 동향 분석 버전"""
     st.info("""
     🔎 **자동 실시간 리콜 분석 시스템** 
-    - 질문 시 자동으로 최신 리콜 데이터 수집
-    - 실시간 데이터 + 기존 DB 통합 분석
-    - 자동 시각화 및 동향 분석 제공
+    - 질문 시, 최신 리콜 데이터를 실시간으로 자동 수집
+    - 기존 DB와 통합하여 리콜 이슈를 분석 제공
+    - 저장한 대화는 ‘분석 리포트 도우미’ 탭에서 자동 요약 가능
     """)
     
     chat_mode = "리콜사례"
