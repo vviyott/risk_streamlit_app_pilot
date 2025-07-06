@@ -13,7 +13,7 @@ def create_market_dashboard():
     
     viz_col1, viz_col2, viz_col3= st.columns(3)
     
-    with viz_col1: # 첫 번째 태블로 시각화: 미국 주별 식품 지출 시각화
+    with viz_col1:
         st.markdown("<h5 style='text-align: left;'># 미국 주별 식품 지출 시각화</h5>", unsafe_allow_html=True)
         
         components.html(
@@ -67,7 +67,7 @@ def create_market_dashboard():
         st.caption("출처: [Statista Food](https://www.statista.com/outlook/cmo/food/united-states)")
    
     
-    with viz_col2: # 두 번째 태블로 시각화: 
+    with viz_col2:
         st.markdown("<h5 style='text-align:left;'># 연도/카테고리별 미국 식품 지출 추이</h5>",
                     unsafe_allow_html=True)
 
@@ -98,12 +98,12 @@ def create_market_dashboard():
             vizEl.style.height = (divEl.offsetWidth * 0.75) + 'px';
             </script>
             """,
-            height=600                      # Streamlit 공간 확보용 – 실제 높이는 JS가 재조정
+            height=600   # Streamlit 공간 확보용 – 실제 높이는 JS가 재조정
         )
         
         st.caption("출처: [USDA](https://www.ers.usda.gov/data-products/us-food-imports)")
 
-    with viz_col3: # 세 번째 태블로 시각화: 연도별 리콜건수 변화 히트맵
+    with viz_col3:
             st.markdown("<h5 style='text-align:left;'># 연도/리콜원인별 발생 건수 히트맵</h5>",
                         unsafe_allow_html=True)
 
