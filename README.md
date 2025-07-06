@@ -17,9 +17,9 @@ risk_streamlit_app/
 │   ├── fda_realtime_crawler.py
 │   ├── google_crawler.py
 │   └── c.py
-└── requirements.txt
-└── runtime.txt
-└── packages.txt
+├── requirements.txt
+├── runtime.txt
+├── packages.txt
 └── 가이드.png
 ```
 
