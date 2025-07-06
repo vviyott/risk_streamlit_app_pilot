@@ -119,7 +119,7 @@ def initialize_recall_vectorstore():
         documents = load_recall_documents()
         
         if not documents:
-            raise ValueError("로드된 리콜 문서가 없습니다.")
+            # raise ValueError("로드된 리콜 문서가 없습니다.")
         
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=openai_api_key)
         
@@ -134,14 +134,14 @@ def initialize_recall_vectorstore():
         return vectorstore
         
     except Exception as e:
-        print(f"리콜 벡터스토어 초기화 오류: {e}")
+        # print(f"리콜 벡터스토어 초기화 오류: {e}")
         raise
 
 # 전역 벡터스토어 초기화
 try:
     recall_vectorstore = initialize_recall_vectorstore()
 except Exception as e:
-    print(f"벡터스토어 초기화 실패: {e}")
+    # print(f"벡터스토어 초기화 실패: {e}")
     recall_vectorstore = None
 
 def translation_node(state: RecallState) -> RecallState:
