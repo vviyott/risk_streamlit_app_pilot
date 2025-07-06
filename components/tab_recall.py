@@ -1,4 +1,4 @@
-# components/tab_recall.py
+# tab_recall.py
 
 import streamlit as st
 import plotly.express as px
