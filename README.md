@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/fa2511b4-ce8e-4274-ae7e-6b8d2910c6f4)```
+```
 risk_streamlit_app/
 ├── main.py
 ├── components/
