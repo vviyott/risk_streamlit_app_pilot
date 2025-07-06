@@ -357,7 +357,7 @@ def perform_ai_analysis(qa_text, selected_project):
     """AI 분석 수행"""
     with st.spinner("🤖 AI가 대화 내용을 통합 분석하고 있습니다..."):
         try:
-            openai_api_key = os.getenv("OPENAI_API_KEY")
+            openai_api_key = os.getenv("OPENAI_API_KEY") # 환경변수에서 OPENAI_API_KEY 값을 가져오는 구
             if not openai_api_key:
                 st.error("OpenAI API 키가 설정되지 않았습니다.")
                 return
