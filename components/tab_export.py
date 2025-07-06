@@ -9,15 +9,12 @@ import pandas as pd
 import json
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage
-from dotenv import load_dotenv
 import os
 from functools import lru_cache
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import io
 import pytz
-
-load_dotenv()
 
 # 캐시된 프로젝트 로딩
 @st.cache_data(ttl=300)  # 5분 TTL
@@ -400,9 +397,8 @@ def render_summary_display():
         if edited_summary != st.session_state.get("summary_content", ""):
             st.session_state.summary_content = edited_summary
 
-# show_basic_info_form 함수 끝에 추가
 def show_basic_info_form():
-    """기본 정보 입력 폼 - 최적화"""
+    """기본 정보 입력 폼"""
     narrow_col, _ = st.columns([0.8, 0.2])
 
     with narrow_col:
@@ -471,96 +467,96 @@ def create_excel_report():
     except Exception as e:
         return False, f"엑셀 파일 생성 중 오류: {str(e)}"
 
-def create_excel_report_from_scratch(timestamp=None, current_date=None):
-    """템플릿이 없을 때 처음부터 엑셀 리포트 생성 - 시간대 수정"""
-    try:
-        from openpyxl import Workbook
+# def create_excel_report_from_scratch(timestamp=None, current_date=None):
+#     """템플릿이 없을 때 처음부터 엑셀 리포트 생성 - 시간대 수정"""
+#     try:
+#         from openpyxl import Workbook
         
-        # 한국 시간 기준으로 날짜 생성 (파라미터가 없을 경우)
-        if not timestamp or not current_date:
-            korean_now = get_korean_datetime()
-            timestamp = korean_now.strftime('%Y%m%d_%H%M%S')
-            current_date = korean_now.strftime('%Y년 %m월 %d일')
+#         # 한국 시간 기준으로 날짜 생성 (파라미터가 없을 경우)
+#         if not timestamp or not current_date:
+#             korean_now = get_korean_datetime()
+#             timestamp = korean_now.strftime('%Y%m%d_%H%M%S')
+#             current_date = korean_now.strftime('%Y년 %m월 %d일')
         
-        output_filename = f"분석리포트_{timestamp}.xlsx"
+#         output_filename = f"분석리포트_{timestamp}.xlsx"
         
-        # 새 워크북 생성
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "수출 제안서 분석 리포트"
+#         # 새 워크북 생성
+#         wb = Workbook()
+#         ws = wb.active
+#         ws.title = "수출 제안서 분석 리포트"
         
-        # 스타일 정의
-        header_font = Font(name='맑은 고딕', size=14, bold=True)
-        title_font = Font(name='맑은 고딕', size=16, bold=True)
-        normal_font = Font(name='맑은 고딕', size=10)
+#         # 스타일 정의
+#         header_font = Font(name='맑은 고딕', size=14, bold=True)
+#         title_font = Font(name='맑은 고딕', size=16, bold=True)
+#         normal_font = Font(name='맑은 고딕', size=10)
         
-        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+#         header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
         
-        # 제목 및 헤더 설정
-        ws['A1'] = "수출 제안서 분석 리포트"
-        ws['A1'].font = title_font
-        ws.merge_cells('A1:J1')
+#         # 제목 및 헤더 설정
+#         ws['A1'] = "수출 제안서 분석 리포트"
+#         ws['A1'].font = title_font
+#         ws.merge_cells('A1:J1')
         
-        ws['A2'] = f"생성일: {current_date}"  # 한국 시간 기준 날짜
-        ws['A2'].font = normal_font
+#         ws['A2'] = f"생성일: {current_date}"  # 한국 시간 기준 날짜
+#         ws['A2'].font = normal_font
         
-        # 제품 정보 섹션
-        row = 4
-        ws[f'A{row}'] = "📦 제품 정보"
-        ws[f'A{row}'].font = header_font
-        ws[f'A{row}'].fill = header_fill
-        ws.merge_cells(f'A{row}:J{row}')
+#         # 제품 정보 섹션
+#         row = 4
+#         ws[f'A{row}'] = "📦 제품 정보"
+#         ws[f'A{row}'].font = header_font
+#         ws[f'A{row}'].fill = header_fill
+#         ws.merge_cells(f'A{row}:J{row}')
         
-        row += 1
-        ws[f'A{row}'] = "제품명:"
-        ws[f'B{row}'] = st.session_state.get("product_name", "")
+#         row += 1
+#         ws[f'A{row}'] = "제품명:"
+#         ws[f'B{row}'] = st.session_state.get("product_name", "")
         
-        row += 1
-        ws[f'A{row}'] = "타겟층:"
-        ws[f'B{row}'] = st.session_state.get("target_name", "")
+#         row += 1
+#         ws[f'A{row}'] = "타겟층:"
+#         ws[f'B{row}'] = st.session_state.get("target_name", "")
         
-        # 추진 배경 섹션
-        row += 2
-        ws[f'A{row}'] = "🎯 추진 배경"
-        ws[f'A{row}'].font = header_font
-        ws[f'A{row}'].fill = header_fill
-        ws.merge_cells(f'A{row}:J{row}')
+#         # 추진 배경 섹션
+#         row += 2
+#         ws[f'A{row}'] = "🎯 추진 배경"
+#         ws[f'A{row}'].font = header_font
+#         ws[f'A{row}'].fill = header_fill
+#         ws.merge_cells(f'A{row}:J{row}')
         
-        row += 1
-        background_text = st.session_state.get("background", "")
-        ws[f'A{row}'] = background_text
-        ws.merge_cells(f'A{row}:J{row+5}')  # 배경 설명을 위한 큰 셀
-        ws[f'A{row}'].alignment = Alignment(wrap_text=True, vertical='top')
+#         row += 1
+#         background_text = st.session_state.get("background", "")
+#         ws[f'A{row}'] = background_text
+#         ws.merge_cells(f'A{row}:J{row+5}')  # 배경 설명을 위한 큰 셀
+#         ws[f'A{row}'].alignment = Alignment(wrap_text=True, vertical='top')
         
-        # 규제 리스크 요약 섹션
-        row += 7
-        ws[f'A{row}'] = "⚠️ 규제 리스크 요약"
-        ws[f'A{row}'].font = header_font
-        ws[f'A{row}'].fill = header_fill
-        ws.merge_cells(f'A{row}:J{row}')
+#         # 규제 리스크 요약 섹션
+#         row += 7
+#         ws[f'A{row}'] = "⚠️ 규제 리스크 요약"
+#         ws[f'A{row}'].font = header_font
+#         ws[f'A{row}'].fill = header_fill
+#         ws.merge_cells(f'A{row}:J{row}')
         
-        row += 1
-        summary_text = st.session_state.get("summary_content", "")
-        ws[f'A{row}'] = summary_text
-        ws.merge_cells(f'A{row}:J{row+10}')  # 요약을 위한 큰 셀
-        ws[f'A{row}'].alignment = Alignment(wrap_text=True, vertical='top')
+#         row += 1
+#         summary_text = st.session_state.get("summary_content", "")
+#         ws[f'A{row}'] = summary_text
+#         ws.merge_cells(f'A{row}:J{row+10}')  # 요약을 위한 큰 셀
+#         ws[f'A{row}'].alignment = Alignment(wrap_text=True, vertical='top')
         
-        # 열 너비 조정
-        ws.column_dimensions['A'].width = 15
-        for col in ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']:
-            ws.column_dimensions[col].width = 12
+#         # 열 너비 조정
+#         ws.column_dimensions['A'].width = 15
+#         for col in ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']:
+#             ws.column_dimensions[col].width = 12
         
-        # 파일 저장
-        wb.save(output_filename)
-        wb.close()
+#         # 파일 저장
+#         wb.save(output_filename)
+#         wb.close()
         
-        return True, output_filename
+#         return True, output_filename
         
-    except Exception as e:
-        return False, f"엑셀 파일 생성 중 오류: {str(e)}"
+#     except Exception as e:
+#         return False, f"엑셀 파일 생성 중 오류: {str(e)}"
 
 def add_excel_export_button():
-    """엑셀 내보내기 버튼 - openpyxl 버전"""
+    """엑셀 내보내기 버튼"""
     
     # 필수 데이터 체크
     required_fields = ["product_name", "target_name", "background"]
