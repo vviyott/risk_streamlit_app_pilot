@@ -63,6 +63,7 @@ def create_market_dashboard():
             window.addEventListener("resize", resizeViz);
             </script>
             """,
+            width=1000,
             height=420,        # Streamlit 쪽에서 확보할 최소 높이
             scrolling=False
         )
@@ -123,6 +124,7 @@ def create_market_dashboard():
                     vizElement.parentNode.insertBefore(scriptElement, vizElement);
                 </script>
                 """,
+                width=1000,
                 height=420
             )
             
@@ -162,6 +164,7 @@ def create_market_dashboard():
             vizEl.style.height = (divEl.offsetWidth * 0.75) + 'px';
             </script>
             """,
+            width=1000,
             height=540                      # Streamlit 공간 확보용 – 실제 높이는 JS가 재조정
         )
         
@@ -216,10 +219,12 @@ def create_market_dashboard():
                 vizElement.parentNode.insertBefore(scriptElement, vizElement);
             </script>
             """,
+            width=1000,
             height=540 # 세로 크기를 넉넉하게 확보
         )
         
         st.caption("출처: [FDA Recall Database](https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts)")
+
 
 
 
